@@ -15,93 +15,67 @@ strSplitVec <- function(inVec,sepn){
 }
 
 ##parse VCF into GR, for use on un-annotated VCFs
-vcfParseGR <- function(vcfIn, germline){
+source("https://raw.githubusercontent.com/brucemoran/R/master/functions/GRanges/vcfVepAnnParse2GR.func.R")
 
-  vcf <- readVcf(vcfIn)
-  gr <- suppressWarnings(InputVcf(vcfIn))
-
-  ##parse info
-  infor <- info(header(vcf))
-
-  ##somatic
-  if(!is.null(germline)){
-    somName <- names(gr)[names(gr)!=germline]
-  }
-  if(is.null(germline)){
-    somName <- names(gr)
-  }
-  print(paste0("Working on: ",somName))
-  som <- gr[[somName]]
-  ##ensure an AF is there, pisces has VF instead (thanks pisces dev=D)
-  if(! "AF" %in% names(mcols(som))) {
-    AD <- as.numeric(unlist(mcols(som)["AD"]))
-    AD1 <- as.numeric(unlist(mcols(som)["AD.1"]))
-    tot <- AD+AD1
-    mcols(som)$AF <- AD1/tot
-  }
-  seqinfo(som) <- seqinfo(vcf)[seqlevels(som)]
-  return(som)
-}
-
-#parse VEP annotated VCF into GR, uses CANONICAL transcript
-vcfVepAnnParseGR <- function(vcfIn, germline){
-
-  vcf <- readVcf(vcfIn)
-  if(dim(vcf)[1] != 0){
-    gr <- suppressWarnings(InputVcf(vcfIn))
-
-    ##parse info
-    infor <- info(header(vcf))
-
-    ##VEP annotation naming
-    annNames <- unlist(strSplitFun(infor[rownames(infor)=="ANN",]$Description,"\\|"))
-
-    ##somatic
-    if(!is.null(germline)){
-      somName <- names(gr)[names(gr)!=germline]
-    }
-    if(is.null(germline)){
-      somName <- names(gr)
-    }
-    print(paste0("Working on: ",somName))
-    som <- gr[[somName]]
-    seqinfo(som) <- seqinfo(vcf)[seqlevels(som)]
-
-    ##ensure an AF is there, pisces has VF instead (thanks pisces dev=D)
-    if(! "AF" %in% names(mcols(som))){
-      AD <- as.numeric(unlist(mcols(som)["AD"]))
-      AD1 <- as.numeric(unlist(mcols(som)["AD.1"]))
-      tot <- AD+AD1
-      mcols(som)$AF <- AD1/tot
-    }
-
-    ##annotation by CANONICAL, and add to mcols
-    somAnnDf <- t(as.data.frame(lapply(strSplitFun(som$ANN,"\\|"),function(ff){
-      if(ff[annNames=="CANONICAL"]=="YES"){
-        if(is.null(ff)){ff<-rep("",length(annNames))}
-        if(length(ff)!=length(annNames)){
-          lengExtra <- length(annNames)-length(ff)
-          ff<-c(ff,rep("",lengExtra))}
-        return(ff)}
-        else{
-          return(rep("",length(annNames)))
-        }
-      })))
-    colnames(somAnnDf) <- annNames
-
-    if(sum(dim(somAnnDf)) != 0){
-      values(som) <- cbind(as.data.frame(mcols(som)),somAnnDf)
-      som$ANN <- NULL
-    }
-    som <-unique(som)
-
-    return(som)
-  }
-  else{
-    print("No variants found")
-    return(GRanges())
-  }
-}
+# #parse VEP annotated VCF into GR, uses CANONICAL transcript
+# vcfVepAnnParseGR <- function(vcfIn, germline){
+#
+#   vcf <- readVcf(vcfIn)
+#   if(dim(vcf)[1] != 0){
+#     gr <- suppressWarnings(InputVcf(vcfIn))
+#
+#     ##parse info
+#     infor <- info(header(vcf))
+#
+#     ##VEP annotation naming
+#     annNames <- unlist(strSplitFun(infor[rownames(infor)=="ANN",]$Description,"\\|"))
+#
+#     ##somatic
+#     if(!is.null(germline)){
+#       somName <- names(gr)[names(gr)!=germline]
+#     }
+#     if(is.null(germline)){
+#       somName <- names(gr)
+#     }
+#     print(paste0("Working on: ",somName))
+#     som <- gr[[somName]]
+#     seqinfo(som) <- seqinfo(vcf)[seqlevels(som)]
+#
+#     ##ensure an AF is there, pisces has VF instead (thanks pisces dev=D)
+#     if(! "AF" %in% names(mcols(som))){
+#       AD <- as.numeric(unlist(mcols(som)["AD"]))
+#       AD1 <- as.numeric(unlist(mcols(som)["AD.1"]))
+#       tot <- AD+AD1
+#       mcols(som)$AF <- AD1/tot
+#     }
+#
+#     ##annotation by CANONICAL, and add to mcols
+#     somAnnDf <- t(as.data.frame(lapply(strSplitFun(som$ANN,"\\|"),function(ff){
+#       if(ff[annNames=="CANONICAL"]=="YES"){
+#         if(is.null(ff)){ff<-rep("",length(annNames))}
+#         if(length(ff)!=length(annNames)){
+#           lengExtra <- length(annNames)-length(ff)
+#           ff<-c(ff,rep("",lengExtra))}
+#         return(ff)}
+#         else{
+#           return(rep("",length(annNames)))
+#         }
+#       })))
+#     colnames(somAnnDf) <- annNames
+#
+#     if(sum(dim(somAnnDf)) != 0){
+#       values(som) <- cbind(as.data.frame(mcols(som)),somAnnDf)
+#       som$ANN <- NULL
+#     }
+#     som <-unique(som)
+#
+#     return(som)
+#   }
+#   else{
+#     print("No variants found")
+#     return(GRanges())
+#   }
+# }
 
 ##create single-letter HGVS protein annotation (VEP outputs 3-letter)
 ##take vector, gsub out aa3 for aa1
@@ -402,6 +376,23 @@ writeConsensusAll <- function(plotList, plotDF, taga, includedOrder=NULL, cons=N
   }
 }
 
+##generate raw allele ffrequencies from list of GRanges
+rawAFs <- function(rawList, combGR){
+  ##ff contians all GR of each sample for the caller
+    as.data.frame(lapply(rawList,function(ff){
+      afs <- rep(as.numeric(0), length(combGR))
+      ##per sample, test which variants are found in entire
+      lapply(seq_along(ff), function(ffi){
+        fff <- ff[[ffi]]
+        seqlevels(fff) <- sort(seqlevels(fff))
+        ffs <- sort(fff)
+        ffsi <- ffs[ffs %in% combGR]
+        afs[combGR %in% ffsi] <- as.numeric(mcols(ffsi)$AF)
+        return(afs)
+      })
+    }))
+}
+
 ##create two plots: all consensus, those in 2+ samples
 plotConsensusList <- function(plotList, rawList, taga, includedOrder=NULL){
 
@@ -432,21 +423,10 @@ plotConsensusList <- function(plotList, rawList, taga, includedOrder=NULL){
   ##take those positions, then query raw calls
   ##allows 'rescue' of those falling out from arbitrary filters
   ##enough support previously to allow re-entry
-  rawAFs <- function(rawList){
-    as.data.frame(lapply(rawList,function(ff){
-      afs <- rep(0,length(combGR))
-      lapply(ff,function(fff){
-        seqlevels(fff) <- sort(seqlevels(fff))
-        ffs <- sort(fff)
-        ffsi <- ffs[ffs %in% combGR]
-        afs[combGR %in% ffsi] <- as.numeric(mcols(ffsi)$AF)
-        return(afs)
-      })
-    }))
-  }
-  plotDFrawout <- rawAFs(rawList)
+  plotDFrawout <- rawAFs(rawList, combGR)
+
   if(length(warnings())>1){
-    plotDFrawout <- rawAFs(rawList)
+    plotDFrawout <- rawAFs(rawList, combGR)
   }
   colnames(plotDFrawout) <- unlist(lapply(names(rawList),function(f){
     paste(f,samples,sep=".")

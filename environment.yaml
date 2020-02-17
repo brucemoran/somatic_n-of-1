@@ -1,4 +1,4 @@
-name: somatic_exome_n-of-1
+name: somatic_n-of-1
 channels:
   - conda-forge
   - r
@@ -24,9 +24,9 @@ dependencies:
   - bioconductor-qdnaseq
   - bwa=0.7.17
   - cancerit-allelecount=4.0.2
-  - cpsr=0.5.1.3
+  - cpsr=0.5.2.2
   - crcmod=1.7
-  - ensembl-vep=98.2
+  - ensembl-vep=98.3
   - fastp=0.20.0
   - fastqc=0.11.8
   - gatk4=4.1.2.0
@@ -34,8 +34,9 @@ dependencies:
   - libiconv=1.15
   - msisensor=0.5
   - multiqc=1.7
+  - nextflow=19.10.0
   - octopus=0.5.2b
-  - pcgr=0.8.3.2
+  - pcgr=0.8.4.4
   - perl=5.26.2
   - picard=2.20.3=0
   - pisces=5.2.9.122

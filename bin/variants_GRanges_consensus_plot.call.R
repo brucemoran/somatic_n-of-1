@@ -36,7 +36,7 @@ vcfExt <- gsub("-","_",
                               gsub("\\.vcf","",
                               vcfList[[1]]),
                               "\\.")[-c(1,2),1],
-                    collapse="."))
+                     collapse="."))
 
 ##create order from vcfList
 if(length(args)==4){
@@ -81,7 +81,7 @@ for(x in 1:2){
       }
       else{
         grList[[caller]] <- lapply(inList[grep(caller,callers)],function(f){
-          suppressWarnings(vcfVepAnnParseGR(f, GERMLINE))
+          suppressWarnings(vcfVepAnnParseGRsoma(f, GERMLINE))
         })
       }
       names(grList[[caller]]) <- samples[grep(caller,callers)]

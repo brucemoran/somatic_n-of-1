@@ -6,25 +6,20 @@
 #### Reference Generation:
 See [DNAseq_references repo](https://github.com/brucemoran/DNAseq_references/tree/master/GRCh_37-38)
 ### Somatic-Germline n-of-1 Pipeline
+#### About the pipeline:
+This pipeline was developed to analyse and report on clinical research. To this end we have tried to make a useful and readable output. This has been achieved largely on the back of [PCGR](https://github.com/sigven/pcgr)/[CPSR](https://github.com/sigven/cpsr) which provide really excellent HTML reports and annotation from multiple clinically relevant sources.
+
+Variant calling uses an 'ensemble' approach with 3 callers (MuTect2, Manta/Strelka2 and Lancet) currently. More may be added in the future. The outputs are combined using our [somaticVariantConsensus](https://github.com/brucemoran/somaticVariantConsensus) method. This takes parsed VCF output and combines calls, requiring support from at least 2 callers. It also parses 'raw' (unfiltered) calls, testing those variants that do not have support from 2 callers to see if they are contained in any single callers filtered VCF. In this way we attempt to retain as much true-positive calls as possible.
 #### To run the pipeline:
 ```
-nextflow run brucemoran/somatic_n-of-1
+nextflow run brucemoran/somatic_n-of-1 -profile standard,singularity
 ```
-#### Mandatory Arguments:
+N.B. that currently Manta/Strelka2 and Lancet are not available through Conda. Because of this Singularity is required to run the pipeline. This may change and we will update, but Singularity is good so we recommend it anyway!
+#### Arguments:
 ```
---sampleCsv      STRING      CSV format, headers: type(either "germline" or "somatic"),sampleID,meta,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz
---refDir      STRING      dir in which reference data and required indices held; recommended to run associated reference creation NextFlow, DNAseq_references
+nextflow run brucemoran/somatic_n-of-1 --help
 ```
-#### Optional Arguments:
-```
--profile      STRING      standard, singularity (recommended), conda (not tested/supported)
---germline      STRING      run HaplotypeCaller on germline sample and annotate with Cancer Predisposition Sequencing Reporter ([CPSR](https://github.com/sigven/cpsr))
---includeOrder      STRING      in final plots, use this ordering of samples (if multiple somatic samples); comma-separated, no spaces
---multiqcConfig      STRING      config file for multiqc
---seqLevel      STRING      "WGS" or "exome" (default)
-```
-#### Formats and Other Info:
-For `--sampleCsv`, the format is:
+#### Formats of --sampleCsv:
 ```
 type,sampleID,meta,read1,read2
 germline,germ1,whole_blood,/full/path/to/germ1.R1.fastq.gz,/full/path/to/germ1.R2.fastq.gz
