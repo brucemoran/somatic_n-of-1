@@ -796,6 +796,9 @@ process lancet_sg {
   output:
   tuple val(sampleID), file('*.sort.lancet.vcf') into lancet_gt
 
+  when:
+  params.seqlevel == "exome"
+
   script:
   """
   SCATGATHN=\$(echo $bed | perl -ane '@s=split(/\\./);print\$s[2];')
