@@ -175,84 +175,10 @@ if($vcf=~m/mutect2/){
   $outName=$outDir . "/" . $id . ".mutect2";
 }
 
-##################
-## Strelka2 SNV ##
-##################
-if($vcf=~m/strelka2\.snv/){
-  open(VCF,$vcf);
-  while(<VCF>){
-    chomp;
-    my @sp=split(/\t/);
-
-    if($_=~m/^##/){
-      if($_=~m/FORMAT/){
-        if($filtflag==0){
-          $filtflag++;
-          $header.="##FORMAT=<ID=GT,Number=1,Type=String,Description=\"GENOTYPE\">\n";
-          $header.="##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"ALELE DEPTHS\">\n";
-          $header.="##FORMAT=<ID=AF,Number=1,Type=Float,Description=\"ALLELE FREQUENCY (ADalt/DP)\">\n";
-          $header.=$_ . "\n";
-          next;
-        }
-      }
-      $header.=$_ . "\n";
-      next;
-    }
-
-    if($_=~m/^#CHROM/){
-      if($sp[-1] eq $id){
-        $header.=$_ . "\n";
-        next;
-      }
-      else{
-        $tcol=-2;$gcol=-1;
-        $header.=$_ . "\n";
-        next;
-      }
-    }
-
-    ##down to pay-dirt
-    else{
-      my $line="";
-      my $lasttwo=&strelka2GTADAF(@sp);
-      if($lasttwo eq 0){
-        next;
-      }
-      else{
-        my @popd=pop(@sp);
-        @popd=pop(@sp);
-        my $pref="GT:AD:AF:";
-        my $sp1=$pref . $sp[-1];
-        $sp[-1]=$sp1;
-        $line.=join("\t",@sp[0..$#sp]);
-        $line.="\t$lasttwo\n";
-        $raw.=$line;
-        @sp=split(/\t/,$line);
-        if($sp[6] eq "PASS"){
-          my $tflag=&strelka2SNVtumourFilter(@sp);
-          my $gflag=&strelka2SNVgermlineFilter(@sp);
-          if(($tflag == 1) && ($gflag == 1)){
-            my $siflag=&indelOrSNV(@sp);
-            if($siflag==0){
-              $snv.=$line;
-              next;
-            }
-          }
-        }
-        else{
-          next;
-        }
-      }
-    }
-  }
-  $outDir=dirname($vcf);
-  $outName=$outDir . "/" . $id . ".strelka2";
-}
-
 ####################
-## Strelka2 indel ##
+## Strelka2 joint ##
 ####################
-if($vcf=~m/strelka2\.indel/){
+if($vcf=~m/strelka2/){
   open(VCF,$vcf);
   while(<VCF>){
     chomp;
@@ -287,13 +213,14 @@ if($vcf=~m/strelka2\.indel/){
 
     ##down to pay-dirt
     else{
-      my $line="";
-      my $lasttwo=&strelka2IndelGTADAF(@sp);
-      if($lasttwo eq 0){
-        next;
-      }
+      my ($line,$lasttwo)="";
+      my $siflag=&indelOrSNV(@sp);
+      if($siflag == 0){ $lasttwo=&Strelka2GTADAF(@sp); }
+      if($siflag == 1){ $lasttwo=&Strelka2IndelGTADAF(@sp); }
+      if($lasttwo eq 0){ next; }
       else{
-
+        # print "@sp\n";
+        # print $siflag . "\n";
         my @popd=pop(@sp);
         @popd=pop(@sp);
         my $pref="GT:AD:AF:";
@@ -304,14 +231,30 @@ if($vcf=~m/strelka2\.indel/){
         @sp=split(/\t/,$line);
         $raw.=$line;
         if($sp[6] eq "PASS"){
-          my $tflag=&strelka2indeltumourFilter(@sp);
-          my $iflag=&strelka2indelgermlineFilter(@sp);
-          my $siflag=&indelOrSNV(@sp);
-          if(($siflag==1) && ($tflag == 1) && ($iflag == 1)){
-              $indel.=$line;
+          # print $line . "\n";
+          if($siflag == 1){
+            my $itflag=&Strelka2IndelTumourFilter(@sp);
+            my $igflag=&Strelka2IndelGermlineFilter(@sp);
+            # print "$itflag\t$igflag\t$siflag\n";
+            if(($siflag == 1) && ($itflag == 1) && ($igflag == 0)){
+                $indel.=$line;
+                next;
             }
+            else{
+              next;
+            }
+          }
           else{
-            next;
+            my $tflag=&Strelka2SNVTumourFilter(@sp);
+            my $gflag=&Strelka2SNVGermlineFilter(@sp);
+            # print "$tflag\t$gflag\t$siflag\n";
+            if(($tflag == 1) && ($gflag == 1)){
+              $snv.=$line;
+              next;
+            }
+            else{
+              next;
+            }
           }
         }
       }
@@ -319,22 +262,6 @@ if($vcf=~m/strelka2\.indel/){
   }
   $outDir=dirname($vcf);
   $outName=$outDir . "/" . $id . ".strelka2";
-}
-
-if($vcf!~m/strelka2\.indel/){
-  my $snvName=$outName . ".snv.pass.vcf";
-  open(OUT,">$snvName");
-  print OUT $header;
-  print OUT $snv;
-  close OUT;
-}
-
-if($vcf!~m/strelka2\.snv/){
-  my $indelName=$outName . ".indel.pass.vcf";
-  open(OUT,">$indelName");
-  print OUT $header;
-  print OUT $indel;
-  close OUT;
 }
 
 my $snvindelName=$outName . ".snv_indel.pass.vcf";
@@ -350,7 +277,13 @@ print OUT $header;
 print OUT $raw;
 close OUT;
 
-##subroutines
+###############################
+###############################
+####                       ####
+#### S U B R O U T I N E S ####
+####                       ####
+###############################
+###############################
 
 ############
 ## Shared ##
@@ -486,7 +419,7 @@ sub mutect2IndelgermlineFilter {
 ##############
 ## Strelka2 ##
 ##############
-sub strelka2SNVtumourFilter {
+sub Strelka2SNVTumourFilter {
   my @info=split(/\:/,$_[$tcol]);
   my @refalt=split(/\,/,$info[1]);
   my $tot=$refalt[0]+$refalt[1];
@@ -501,7 +434,8 @@ sub strelka2SNVtumourFilter {
   }
 }
 
-sub strelka2SNVgermlineFilter {
+##total reads above depth threshold && no reads at alt
+sub Strelka2SNVGermlineFilter {
   my @info=split(/\:/,$_[$gcol]);
   my @refalt=split(/\,/,$info[1]);
   my $tot=$refalt[0]+$refalt[1];
@@ -513,7 +447,7 @@ sub strelka2SNVgermlineFilter {
   }
 }
 
-sub strelka2SNVfindBaseInfo {
+sub Strelka2SNVFindBaseInfo {
   ##which index for base in info?
   my $index="";
   if($_[0] eq "A"){$index=-4}
@@ -523,7 +457,7 @@ sub strelka2SNVfindBaseInfo {
   return($index);
 }
 
-sub strelka2GTADAF {
+sub Strelka2GTADAF {
   my $ggt="";
   my $tgt="";
   my @tf=split(/\:/,$_[$tcol]);
@@ -532,8 +466,8 @@ sub strelka2GTADAF {
   }
   else{
     my @gf=split(/\:/,$_[$gcol]);
-    my $ref=&strelka2SNVfindBaseInfo($_[3]);
-    my $alt=&strelka2SNVfindBaseInfo($_[4]);
+    my $ref=&Strelka2SNVFindBaseInfo($_[3]);
+    my $alt=&Strelka2SNVFindBaseInfo($_[4]);
 
     ##REF, ALT for T, G
     my @tr=split(/\,/,$tf[$ref]);
@@ -577,7 +511,7 @@ sub strelka2GTADAF {
   }
 }
 
-sub strelka2indeltumourFilter {
+sub Strelka2IndelTumourFilter {
   my @info=split(/\:/,$_[$tcol]);
   my @refalt=split(/\,/,$info[1]);
   my $tot=$refalt[0]+$refalt[1];
@@ -592,7 +526,7 @@ sub strelka2indeltumourFilter {
   }
 }
 
-sub strelka2indelgermlineFilter {
+sub Strelka2IndelGermlineFilter {
   my @info=split(/\:/,$_[$gcol]);
   my @refalt=split(/\,/,$info[1]);
   my $tot=$refalt[0]+$refalt[1];
@@ -604,7 +538,7 @@ sub strelka2indelgermlineFilter {
   }
 }
 
-sub strelka2IndelGTADAF {
+sub Strelka2IndelGTADAF {
 
   ##make GT:AD:AF
   my $ggt="";

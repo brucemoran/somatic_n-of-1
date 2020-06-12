@@ -1,9 +1,9 @@
 name: somatic_n-of-1
 channels:
-  - conda-forge
   - r
   - pcgr
   - bioconda
+  - conda-forge
   - anaconda
   - defaults
 dependencies:
@@ -21,15 +21,14 @@ dependencies:
   - bioconductor-genomicranges
   - bioconductor-org.hs.eg.db
   - bioconductor-purecn
-  - bioconductor-qdnaseq
+  - bioconductor-rtracklayer
   - bwa=0.7.17
-  - cancerit-allelecount=4.0.2
   - cpsr=0.5.2.2
   - crcmod=1.7
   - ensembl-vep=98.3
   - fastp=0.20.0
   - fastqc=0.11.8
-  - gatk4=4.1.2.0
+  - gatk4=4.1.3.0
   - htslib=1.9
   - libiconv=1.15
   - msisensor=0.5
@@ -38,14 +37,13 @@ dependencies:
   - octopus=0.5.2b
   - pcgr=0.8.4.4
   - perl=5.26.2
-  - picard=2.20.3=0
+  - picard=2.20.3
   - pisces=5.2.9.122
   - r-data.table
   - r-facets=0.5.14
   - r-plyr
   - r-dplyr
   - r-pheatmap
-  - r-sequenza=2.1.2
   - r-tidyverse
   - samtools=1.9
   - snp-pileup=0.5.14
