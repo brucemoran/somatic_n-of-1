@@ -35,6 +35,7 @@ dependencies:
   - multiqc=1.7
   - nextflow=19.10.0
   - octopus=0.5.2b
+  - pandoc
   - pcgr=0.8.4.4
   - perl=5.26.2
   - picard=2.20.3

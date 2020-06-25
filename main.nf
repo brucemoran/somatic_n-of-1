@@ -52,10 +52,10 @@ params.twobit = Channel.fromPath("$params.refDir/*fasta.2bit").getVal()
 
 params.seqlevel = "$params.seqLevel".toLowerCase()
 
-params.intlist = Channel.fromPath("$params.refDir/${params.seqlevel}.bed.interval_list").getVal()
-params.bed = Channel.fromPath("$params.refDir/${params.seqlevel}.bed").getVal()
-params.bedgz = Channel.fromPath("$params.refDir/${params.seqlevel}.bed.gz").getVal()
-params.bedgztbi = Channel.fromPath("$params.refDir/${params.seqlevel}.bed.gz.tbi").getVal()
+params.intlist = Channel.fromPath("$params.refDir/${params.seqlevel}/*.bed.interval_list").getVal()
+params.bed = Channel.fromPath("$params.refDir/${params.seqlevel}/*.bed").getVal()
+params.bedgz = Channel.fromPath("$params.refDir/${params.seqlevel}/*.bed.gz").getVal()
+params.bedgztbi = Channel.fromPath("$params.refDir/${params.seqlevel}/*.bed.gz.tbi").getVal()
 
 params.dbsnp = Channel.fromPath("$params.refDir/dbsnp*.gz").getVal()
 params.dbsnptbi = Channel.fromPath("$params.refDir/dbsnp*.tbi").getVal()
@@ -67,12 +67,18 @@ params.ktbi = Channel.fromPath("$params.refDir/KG_phase1*.gz.tbi").getVal()
 params.hpmp = Channel.fromPath("$params.refDir/hapmap*.gz").getVal()
 params.htbi = Channel.fromPath("$params.refDir/hapmap*.gz.tbi").getVal()
 
-params.gps = Channel.fromPath("$params.refDir/af-only-gnomad.*.vcf.gz").getVal()
-params.gpstbi = Channel.fromPath("$params.refDir/af-only-gnomad.*.vcf.gz.tbi").getVal()
+params.gps = Channel.fromPath("$params.refDir/${params.seqlevel}/af-only-gnomad.*.vcf.gz").getVal()
+params.gpstbi = Channel.fromPath("$params.refDir/${params.seqlevel}/af-only-gnomad.*.vcf.gz.tbi").getVal()
 
 //PCGR, CPSR version and base data dir
 params.grchvers = Channel.fromPath("$params.refDir/pcgr/data").getVal()
 params.pcgrdir = Channel.fromPath("$params.refDir/pcgr").getVal()
+
+//GRIDSS params
+params.blacklist = Channel.fromPath("$params.refDir/gridss_blacklist.noChr.bed").getVal()
+params.gridssProps = Channel.fromPath("$params.refDir/gridss.properties").getVal()
+params.gridssponbedpe = Channel.fromPath("$params.refDir/gridss_pon_breakpoint.bedpe").getVal()
+params.gridssponsinbed = Channel.fromPath("$params.refDir/gridss_pon_single_breakend.bed").getVal()
 
 //Java task memory allocation via task.memory
 javaTaskmem = { it.replace(" GB", "g") }
@@ -336,7 +342,6 @@ process scat_gath {
 
   input:
   file(intlist) from Channel.value(params.intlist)
-  each caller from ['mutect2', 'hc', 'lancet']
 
   output:
   file('lancet.scatgath.*.bed') into lancet_bedding
@@ -354,22 +359,16 @@ process scat_gath {
     }
   }
   """
-  if[[ $caller == "lancet" ]];then
-    SGCOUNT=\$(( $sgcount * 2 ))
-  else
-    SGCOUNT=$sgcount
-  fi
-
-  perl -ane 'if(\$F[0]!~m/decoy/){print \$_;}' $intlist > no_decoy.interval_list
   picard IntervalListTools \
-    I=no_decoy.interval_list \
-    SCATTER_COUNT=\$SGCOUNT \
+    I=$intlist \
+    SCATTER_COUNT=$sgcount \
     O=./
   ls temp*/* | while read FILE; do
     COUNTN=\$(dirname \$FILE | perl -ane '@s=split(/\\_/); print \$s[1];');
-    mv \$FILE ${caller}.scatgath.\${COUNTN}.bed.interval_list;
-    grep -v @ ${caller}.scatgath.\${COUNTN}.bed.interval_list | \
-      cut -f 1,2,3,5 > ${caller}.scatgath.\${COUNTN}.bed
+    mv \$FILE mutect2.scatgath.\${COUNTN}.bed.interval_list;
+    cp mutect2.scatgath.\${COUNTN}.bed.interval_list hc.scatgath.\${COUNTN}.bed.interval_list
+    grep -v @ mutect2.scatgath.\${COUNTN}.bed.interval_list | \
+      cut -f 1,2,3,5 > lancet.scatgath.\${COUNTN}.bed
   done
   """
 }
@@ -430,44 +429,61 @@ process haplotypecaller {
 */
 gridssing
   .collect()
-  .flatten()
-  .map { it -> ["dummy_value", it[0..-1].flatten()] }
+  .map { it -> tuple(it.flatten()) }
+  // .println { it }
   .set { gridssin }
+
+
 
 process gridss {
 
   label 'high_mem'
 
+  publishDir path: "$params.outDir/output/gridss", mode: "copy"
+
   input:
-  tuple val(dummy), file(listbams) from gridssin
-  val(germlineID) from gridssgermID
+  file(listbams) from gridssin
+  val(germlineID) from gridssgermID.collect().flatten().unique()
   tuple file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
   tuple file(amb), file(ann), file(bwt), file(pac), file(sa) from Channel.value([params.amb, params.ann, params.bwt, params.pac, params.sa])
+  tuple file(gblist), file(gprops), file(gbedpe), file(gbedse) from Channel.value([params.blacklist, params.gridssProps, params.gridssponbedpe, params.gridssponsinbed])
 
   output:
-  tuple val(type), val(sampleID), val(meta), file('*.bam'), file('*.bai') into (cramming, dup_marking)
+  file('*') into completegridss
+
+  when:
+  params.seqlevel == "wgs" & params.grchvers == "grch37"
 
   script:
   taskmem = javaTaskmem("${task.memory}")
   """
   GERMLINEBAM=\$(ls | grep $germlineID | grep bam | grep -v bai)
   BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
-  LABELS=\$(echo -n $germlineID" "\$(ls *bam | cut -d "." -f1) | sed 's/\\s */,/g')
+  LABELS=\$(echo -n $germlineID" "\$(ls *bam | grep -v $germlineID | cut -d "." -f1) | sed 's/\\s */,/g')
+  TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
 
-  gridss.sh \
+  gridss \
     --reference $fasta \
     --output ${params.runID}".output.vcf.gz" \
     --assembly ${params.runID}".assembly.bam" \
     --threads ${task.cpus} \
-    --jar gridss.jar \
+    --jar /opt/miniconda/envs/gridss/share/gridss-2.9.3-0/gridss.jar\
     --workingdir ./ \
     --jvmheap $taskmem \
-    --blacklist ${params.blacklist} \
+    --blacklist $gblist \
     --steps All \
-    --configuration gridss.properties \
+    --configuration $gprops \
     --maxcoverage 50000 \
     --labels \$LABELS \
     \$BAMFILES
+
+  Rscript --vanilla /opt/miniconda/envs/gridss/share/gridss/scripts/gridss_somatic_filter.R \
+    --input ${params.runID}".output.vcf.gz" \
+    --output ${params.runID}".somatic_filter.vcf.bgz" \
+    --plotdir ./ \
+    --scriptdir /opt/miniconda/envs/gridss/share/gridss-2.9.3-0 \
+    --normalordinal 1 \
+    --tumourordinal \$TUMORDS
   """
 }
 
@@ -1104,7 +1120,7 @@ process vcfGRa {
 
 vcfs_pcgr
   .flatten()
-  .into { vcfs_pcgrd; vcfs_gpl }
+  .set { vcfs_pcgrd }
 
 /* 3.2 Create VCF for PCGR from consensus
 */
@@ -1168,7 +1184,6 @@ process pcgrreport {
 
   CONFIG=\$(readlink -e ${params.pcgrdir}/data/*/pcgr_configuration_default.toml)
   VERS=\$(ls ${params.pcgrdir}/data)
-
   pcgr.py ${params.pcgrdir} \
     ./ \
     \$VERS \
@@ -1182,40 +1197,6 @@ process pcgrreport {
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
   """
 }
-
-/* 3.3 GRIDSS-Purple-Linx
-*/
-process gridss_purple_linx {
-  publishDir "$params.outDir/samples/$sampleID/gridss_purple_linx", mode: "copy"
-
-  label 'med_mem'
-
-  input:
-  file(vcf) from vcfs_gpl
-  tuple file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
-  tuple file(amb), file(ann), file(bwt), file(pac), file(sa) from Channel.value([params.amb, params.ann, params.bwt, params.pac, params.sa])
-  tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from gpling
-
-  output:
-  file('*') into complete_gpl
-
-  when:
-  seqlevel == "wgs"
-
-  script:
-  sampleID = "${vcf}".split("\\.")[0]
-  """
-  gridss-purple-linx.sh \
-    --ref_dir ${params.refDir} \
-    --reference $fa \
-    -s $sampleID \
-    -t $tumourbam \
-    -n $germlinebam \
-    --snvvcf $vcf \
-    -o ./output
-  """
-}
-
 
 /* 4.0 Run multiQC to finalise report
 */

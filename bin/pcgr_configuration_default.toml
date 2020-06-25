@@ -116,4 +116,4 @@ vep_pick_order = "canonical,appris,biotype,ccds,rank,tsl,length,mane"
 ## omit intergenic variants during VEP processing
 vep_skip_intergenic = false
 ## generate a MAF for input VCF using https://github.com/mskcc/vcf2maf
-vcf2maf = true
+vcf2maf = false
