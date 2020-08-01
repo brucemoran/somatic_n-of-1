@@ -71,8 +71,8 @@ params.gps = Channel.fromPath("$params.refDir/${params.seqlevel}/af-only-gnomad.
 params.gpstbi = Channel.fromPath("$params.refDir/${params.seqlevel}/af-only-gnomad.*.vcf.gz.tbi").getVal()
 
 //PCGR, CPSR version and base data dir
-params.grchvers = Channel.fromPath("$params.refDir/pcgr/data").getVal()
-params.pcgrdir = Channel.fromPath("$params.refDir/pcgr").getVal()
+params.grchvers  = Channel.fromPath("$params.refDir/pcgr/data/*", type: 'dir').getVal()
+params.pcgrbase = Channel.fromPath("$params.refDir/pcgr").getVal()
 
 //GRIDSS params
 params.blacklist = Channel.fromPath("$params.refDir/gridss_blacklist.noChr.bed").getVal()
@@ -430,10 +430,7 @@ process haplotypecaller {
 gridssing
   .collect()
   .map { it -> tuple(it.flatten()) }
-  // .println { it }
   .set { gridssin }
-
-
 
 process gridss {
 
@@ -452,7 +449,7 @@ process gridss {
   file('*') into completegridss
 
   when:
-  params.seqlevel == "wgs" & params.grchvers == "grch37"
+  params.seqlevel == "wgs" && params.refDir =~ /GRCh37/
 
   script:
   taskmem = javaTaskmem("${task.memory}")
@@ -461,12 +458,12 @@ process gridss {
   BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
   LABELS=\$(echo -n $germlineID" "\$(ls *bam | grep -v $germlineID | cut -d "." -f1) | sed 's/\\s */,/g')
   TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
-
+  TASKCPUS=\$(( ${task.cpus} / 4 )) ##"preprocessing will use up to 200-300% CPU per thread"
   gridss \
     --reference $fasta \
     --output ${params.runID}".output.vcf.gz" \
     --assembly ${params.runID}".assembly.bam" \
-    --threads ${task.cpus} \
+    --threads \$TASKCPUS \
     --jar /opt/miniconda/envs/gridss/share/gridss-2.9.3-0/gridss.jar\
     --workingdir ./ \
     --jvmheap $taskmem \
@@ -518,7 +515,7 @@ process hc_merge {
 /* 1.25: CPSR annotation of GATK4 Germline
 */
 process cpsrreport {
-
+  echo true
   label 'med_mem'
 
   publishDir "$params.outDir/reports", mode: "copy", pattern: "*.html"
@@ -526,26 +523,27 @@ process cpsrreport {
 
   input:
   tuple val(sampleID), val(meta), file(vcf), file(tbi) from cpsr_vcf
+  file(grchver) from Channel.value([params.grchvers])
 
   output:
   file('*') into cpsr_vcfs
 
   script:
+  grchv = "${grchver}".split("\\/")[-1]
   """
   {
-  CONFIG=\$(readlink -e ${params.pcgrdir}/data/*/cpsr_configuration_default.toml)
   META=\$(echo $meta | sed 's/\\s */_/g' | sed 's/[()]//g')
-  VERS=\$(ls ${params.pcgrdir}/data)
+
   ##CPSR v0.5.2.2
   cpsr.py \
     --no-docker \
     --no_vcf_validate \
     --panel_id 0 \
     $vcf \
-    ${params.pcgrdir} \
+    ${params.pcgrbase} \
     ./ \
-    \$VERS \
-    \$CONFIG \
+    $grchv \
+    ${params.pcgrbase}/data/$grchv/cpsr_configuration_default.toml \
     \$META
   } 2>&1 | tee > ${sampleID}.cpsr.log.txt
   """
@@ -1046,16 +1044,17 @@ process vepann {
   input:
   each file(vcf) from ALLVCFS
   tuple file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
+  file(grchver) from Channel.value([params.grchvers])
 
   output:
   file('*.vcf') into runGRanges
 
   script:
+  grchv = "${grchver}".split("\\/")[-1]
   """
   VCFANNO=\$(echo $vcf | sed "s/.vcf/.vep.vcf/")
-  GRCHVER=\$(ls ${params.grchvers})
-  VEPVERS=\$(ls ${params.pcgrdir}/data/*/.vep/homo_sapiens/ | cut -d "_" -f2)
-  vep --dir_cache ${params.pcgrdir}/data/\$GRCHVER/.vep \
+  VEPVERS=\$(ls ${params.pcgrbase}/data/$grchv/.vep/homo_sapiens/ | cut -d "_" -f2)
+  vep --dir_cache ${params.pcgrbase}/data/$grchv/.vep \
     --offline \
     --assembly \$VEPVERS \
     --vcf_info_field ANN \
@@ -1164,11 +1163,13 @@ process pcgrreport {
 
   input:
   tuple val(sampleID), file(vcf), val(meta), file(jointsegs), file(ploidpur) from pcgr_inputs
+  file(grchver) from Channel.value([params.grchvers])
 
   output:
   file('*') into completedPCGR
 
   script:
+  grchv = "${grchver}".split("\\/")[-1]
   """
   {
   ##want META to allow spaces, remove non-alphanum
@@ -1182,11 +1183,11 @@ process pcgrreport {
     PURITY="--tumor_purity \$(cut -f 2 $ploidpur)"
   fi
 
-  CONFIG=\$(readlink -e ${params.pcgrdir}/data/*/pcgr_configuration_default.toml)
-  VERS=\$(ls ${params.pcgrdir}/data)
-  pcgr.py ${params.pcgrdir} \
+  CONFIG=\$(readlink -e ${params.pcgrbase}/data/$grchv/pcgr_configuration_default.toml)
+
+  pcgr.py ${params.pcgrbase} \
     ./ \
-    \$VERS \
+    $grchv \
     \$CONFIG \
     \$META \
     --input_vcf $vcf \

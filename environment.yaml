@@ -41,10 +41,12 @@ dependencies:
   - picard=2.20.3
   - pisces=5.2.9.122
   - r-data.table
+  - r-devtools
   - r-facets=0.5.14
   - r-plyr
   - r-dplyr
   - r-pheatmap
+  - r-stringi
   - r-tidyverse
   - samtools=1.9
   - snp-pileup=0.5.14
