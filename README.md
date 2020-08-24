@@ -4,12 +4,22 @@
 #### Dependencies:
 [NextFlow](https://www.nextflow.io/index.html#GetStarted), [Singularity](https://sylabs.io/guides/3.0/user-guide/installation.html#)
 #### Reference Generation:
-See [DNAseq_references repo](https://github.com/brucemoran/DNAseq_references/tree/master/GRCh_37-38)
+Run the included `download-references.nf`
+```
+nextflow run brucemoran/somatic_n-of-1/download-references.nf \
+  -profile singularity \
+  --outdir <PATH> \
+  --assembly <"GRCh37" or "GRCh38"> \
+  --exomebedurl <URL of exome BED file>
+  OR
+  --exomebedfile <PATH to exome BED file>
+```
+NB that exome bed files should be GRCh37 even if using `--assembly "GRCh38"` because Illumina exome BEDs are all GRCh37. 
 ### Somatic-Germline n-of-1 Pipeline
 #### About the pipeline:
-This pipeline was developed to analyse and report on clinical research. To this end we have tried to make a useful and readable output. This has been achieved largely on the back of [PCGR](https://github.com/sigven/pcgr)/[CPSR](https://github.com/sigven/cpsr) which provide really excellent HTML reports and annotation from multiple clinically relevant sources.
+This pipeline was developed to analyse and report on clinical cancer research. To this end we have tried to make a useful and clinician-readable output. This has been achieved largely on the back of [PCGR](https://github.com/sigven/pcgr)/[CPSR](https://github.com/sigven/cpsr) which provide really excellent HTML reports and annotation from multiple clinically relevant sources.
 
-Variant calling uses an 'ensemble' approach with 3 callers (MuTect2, Manta/Strelka2 and Lancet) currently. More may be added in the future. The outputs are combined using our [somaticVariantConsensus](https://github.com/brucemoran/somaticVariantConsensus) method. This takes parsed VCF output and combines calls, requiring support from at least 2 callers. It also parses 'raw' (unfiltered) calls, testing those variants that do not have support from 2 callers to see if they are contained in any single callers filtered VCF. In this way we attempt to retain as much true-positive calls as possible.
+Variant calling uses an 'ensemble' approach with 3 callers (MuTect2, Manta/Strelka2 and Lancet) currently. More may be added in the future. The outputs are combined using our [somenone::variantconsensus](https://github.com/brucemoran/somenone/blob/master/R/somenone_variantconsensus.R) method. This takes parsed VCF output and combines calls, requiring support from at least 2 callers. It also parses 'raw' (unfiltered) calls, testing those variants that do not have support from 2 callers to see if they are contained in any single callers filtered VCF. In this way we attempt to retain as much true-positive calls as possible.
 #### To run the pipeline:
 ```
 nextflow run brucemoran/somatic_n-of-1 -profile standard,singularity
