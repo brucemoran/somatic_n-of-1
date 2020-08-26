@@ -840,7 +840,7 @@ process mutct2_contam_filter {
 
   script:
   def taskmem = javaTaskmem("${task.memory}")
-  def gpsgz = "${gps_files}/af-only-gnomad*.gz"
+  def gpsgz = params.seqlevel == "exome" ? "${gps_files}/af-only-gnomad.${params.exomeTag}*.gz" : "${gps_files}/af-only-gnomad.*.gz"
   """
   gatk --java-options -Xmx${taskmem} \
     GetPileupSummaries \
