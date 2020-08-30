@@ -18,6 +18,8 @@ if (params.help) {
   log.info '  --exomeBedURL     STRING      URL to exome bed file for intervals; NB assumes GRCh37'
   log.info '  or'
   log.info '  --exomeBedFile     STRING      locally downloaded exome bed file for intervals; NB assumes GRCh37'
+  log.info '  --cosmicUser     STRING      COSMIC login credentials, user email'
+  log.info '  --cosmicPass     STRING      COSMIC login credentials, password'
   log.info ''
   log.info ''
   exit 1
@@ -53,7 +55,6 @@ process fasta_dl {
     gunzip -c human_g1k_v37.fasta.gz | sed 's/>chr/>/g' > human_g1k_v37.noChr.fasta
     samtools faidx human_g1k_v37.noChr.fasta
     """
-
   else
     """
     ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
@@ -301,14 +302,15 @@ process lift_over {
   file('*.lift.bed') into exome_bed_liftd
 
   script:
-  """
-  if [[ ${params.assemblylc} != "grch37" ]]; then
+  if( params.assembly == "GRCh37" )
+    """
+    cp $exomebed ${params.exomeTag}.lift.bed
+    """
+  else
+    """
     wget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
     liftOver $exomebed hg19ToHg38.over.chain.gz ${params.exomeTag}.lift.bed unmapped
-  else
-    cp $exomebed ${params.exomeTag}.lift.bed
-  fi
-  """
+    """
 }
 
 /* 3.11: Parse bed for exome
@@ -409,15 +411,13 @@ process exome_biall {
   tuple file(fasta), file(fai) from fasta_exome_biall
 
   output:
-  tuple file('af-only-gnomad.*.noChr.vcf.gz'), file('af-only-gnomad.*.noChr.vcf.gz.tbi') into exome_biallelicgz
+  tuple file("af-only-gnomad.${params.exomeTag}.hg*.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.hg*.noChr.vcf.gz.tbi") into exome_biallelicgz
   file('exome.biall.bed') into pcgrtoml_exome
 
   script:
-  """
-  cut -f 1,2,3 $exomebed > exome.biall.bed
-
-  if [[ ${params.assemblylc} == "grch37" ]];then
-
+  if( params.assembly == "GRCh37" )
+    """
+    cut -f 1,2,3 $exomebed > exome.biall.bed
     gsutil cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
     bgzip af-only-gnomad.raw.sites.vcf
     tabix af-only-gnomad.raw.sites.vcf.gz
@@ -426,9 +426,10 @@ process exome_biall {
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.hg19.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf
     bgzip af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf
     tabix af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf.gz
-
+    """
   else
-
+    """
+    cut -f 1,2,3 $exomebed > exome.biall.bed
     gsutil cp gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz ./
     gunzip -c af-only-gnomad.hg38.vcf.gz | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
     tabix af-only-gnomad.hg38.noChr.vcf.gz
@@ -436,8 +437,7 @@ process exome_biall {
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.hg38.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.hg38.noChr.vcf
     bgzip af-only-gnomad.${params.exomeTag}.hg38.noChr.vcf
     tabix af-only-gnomad.${params.exomeTag}.hg38.noChr.vcf.gz
-  fi
-  """
+    """
 }
 
 /* 3.32: Create Mutect2 af-only-gnomad file
@@ -459,10 +459,9 @@ process wgs_biall {
   file('wgs.biall.bed') into pcgrtoml_wgs
 
   script:
-  """
-  cut -f 1,2,3 $wgsbed > wgs.biall.bed
-
-  if [[ ${params.assemblylc} == "grch37" ]];then
+  if( params.assembly == "GRCh37" )
+    """
+    cut -f 1,2,3 $wgsbed > wgs.biall.bed
 
     gsutil cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
     bgzip af-only-gnomad.raw.sites.vcf
@@ -471,9 +470,10 @@ process wgs_biall {
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg19.noChr.vcf $fai > af-only-gnomad.wgs.hg19.noChr.vcf
     bgzip af-only-gnomad.wgs.hg19.noChr.vcf
     tabix af-only-gnomad.wgs.hg19.noChr.vcf.gz
-
+    """
   else
-
+    """
+    cut -f 1,2,3 $wgsbed > wgs.biall.bed
     gsutil cp gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz ./
     gunzip -c af-only-gnomad.hg38.vcf.gz | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
     tabix af-only-gnomad.hg38.noChr.vcf.gz
@@ -482,8 +482,7 @@ process wgs_biall {
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg38.noChr.vcf $fai > af-only-gnomad.wgs.hg38.noChr.vcf
     bgzip af-only-gnomad.wgs.hg38.noChr.vcf
     tabix af-only-gnomad.wgs.hg38.noChr.vcf.gz
-  fi
-  """
+    """
 }
 
 /* 4.0 Index various VCFs
@@ -557,7 +556,7 @@ process pcgr_data {
   maxRetries 3
 
   output:
-  file('data') into completedpcgrdb
+  file('data') into pcgrdata
   file("data/${params.assemblylc}/.vep/") into pcgrdbvep
   file("data/${params.assemblylc}/RELEASE_NOTES") into pcgrreleasenotes
   file("data/${params.assemblylc}/pcgr_configuration_default.toml") into pcgrtoml
@@ -580,9 +579,10 @@ process pcgr_data {
     """
 }
 
-process pcgr_toml {
+//same issue as https://github.com/labsyspharm/mcmicro/issues/148
+//possibly due to two outputs concurrently trying to publish 'data'(?)
 
-  publishDir "$params.outdir/pcgr/data/${params.assemblylc}", mode: "copy"
+process pcgr_toml {
 
   input:
   file(toml) from pcgrtoml
@@ -631,15 +631,20 @@ process pcgr_toml {
 */
 process vepdb {
 
-  publishDir "$params.outdir/pcgr/data/${params.assemblylc}", mode: "copy"
+  publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
+  publishDir "$params.outdir/pcgr/data/${params.assemblylc}", mode: "copy", pattern: "*.toml"
 
   input:
+  file(data) from pcgrdata
   file(releasenotes) from pcgrreleasenotes
   file(pcgrdbvepdir) from pcgrdbvep
+  file(tomls) into pcgrtomld.collect()
 
   output:
-  file('.vep/homo_sapiens') into complete_vepdb
+  file('data') into complete_vepdb
+  file('pcgr_configuration_*.toml') into complete_pcgrtoml
 
+  script:
   """
   #! /bin/bash
   ##build VEP cache using PCGR Singularity container 'vep_install' script
@@ -744,5 +749,25 @@ process gridss {
     """
     git clone https://github.com/PapenfussLab/gridss
     mv gridss/src/main/resources/gridss.properties ./
+    """
+}
+
+process cosmic {
+
+    publishDir "${params.outdir}/cosmic", mode: 'copy'
+
+    when:
+    params.cosmicUser && params.cosmicPass
+
+    output:
+    file 'cancer_gene_census.csv'
+
+    script:
+    """
+    ##https://cancer.sanger.ac.uk/cosmic/help/file_download
+    curl -H "Authorization: Basic \$(echo ${params.cosmicUser}:${params.cosmicPass} | base64)" https://cancer.sanger.ac.uk/cosmic/file_download/${params.assembly}/cosmic/${params.cosmicVers}/cancer_gene_census.csv > url.txt
+
+    URL=\$(cut -d '"' -f4 url.txt)
+    curl -o cancer_gene_census.csv \$URL
     """
 }

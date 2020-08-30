@@ -428,6 +428,7 @@ process gridss {
 
   output:
   file('*') into completegridss
+  tuple file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
 
   when:
   params.seqlevel == "wgs" && params.refDir =~ /GRCh37/
@@ -442,7 +443,7 @@ process gridss {
   """
   GERMLINEBAM=\$(ls | grep ${germlineID} | grep bam | grep -v bai)
   BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
-  LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | cut -d "." -f1) | sed 's/\\s */,/g')
+  LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | grep -v assambly | cut -d "." -f1) | sed 's/\\s */,/g')
   TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
   TASKCPUS=\$(( ${task.cpus} / 4 )) ##"preprocessing will use up to 200-300% CPU per thread"
   gridss \
@@ -467,8 +468,30 @@ process gridss {
     --scriptdir /opt/miniconda/envs/gridss/share/gridss-2.9.3-0 \
     --normalordinal 1 \
     --tumourordinal \$TUMORDS
+  """
+}
 
-  Rscript -e "somenone::gridss_parse_plot( \\"${params.runID}.somatic_filter.vcf.bgz\\", \$(echo \\"${dict}\\"), \\"${which_genome}\\", NULL)"
+process gridss_vcf_pp {
+
+  label 'low_mem'
+
+  publishDir path: "$params.outDir/output/gridss", mode: "copy"
+
+  input:
+  tuple file(vcf), file(tbi) from gridsspp
+  file(bwa) from reference.bwa
+
+  output:
+  file('*') into completegridsspp
+
+  when:
+  params.seqlevel == "wgs" && params.refDir =~ /GRCh37/
+
+  script:
+  def dict = "${bwa}/*dict"
+  def which_genome = reference.grchvers == "grch37" ? "hg19" : "hg38"
+  """
+  Rscript -e "somenone::gridss_parse_plot(\\"${params.runID}.somatic_filter.vcf.bgz\\", \\"${germlineID}\\", \$(echo \\"${dict}\\"), \\"${which_genome}\\", NULL)"
   """
 }
 
@@ -840,7 +863,7 @@ process mutct2_contam_filter {
 
   script:
   def taskmem = javaTaskmem("${task.memory}")
-  def gpsgz = "${gps_files}/af-only-gnomad*.gz"
+  def gpsgz = params.seqlevel == "exome" ? "${gps_files}/af-only-gnomad.${params.exomeTag}.hg*.noChr.vcf.gz" : "${gps_files}/af-only-gnomad.wgs.hg*.noChr.vcf.gz"
   """
   gatk --java-options -Xmx${taskmem} \
     GetPileupSummaries \
