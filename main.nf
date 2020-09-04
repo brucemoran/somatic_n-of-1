@@ -225,7 +225,7 @@ process mrkdup {
 
   label 'high_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/picard", mode: "copy", pattern: "*.txt]"
+  publishDir path: "$params.outDir/samples/$sampleID/picard", mode: "copy", pattern: "*.txt"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from dup_marking
@@ -416,7 +416,7 @@ gridssing
 
 process gridss {
 
-  label 'high_mem'
+  label 'max_mem'
 
   publishDir path: "$params.outDir/output/gridss", mode: "copy"
 
@@ -428,7 +428,7 @@ process gridss {
 
   output:
   file('*') into completegridss
-  tuple file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
+  tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
 
   when:
   params.seqlevel == "wgs" && params.refDir =~ /GRCh37/
@@ -436,14 +436,12 @@ process gridss {
   script:
   taskmem = javaTaskmem("${task.memory}")
   def fasta = "${bwa}/*fasta"
-  def dict = "${bwa}/*dict"
-  def which_genome = reference.grchvers == "grch37" ? "hg19" : "hg38"
   def gridss_blacklist = "${gridss_files}/gridss_blacklist.noChr.bed"
   def gridss_props = "${gridss_files}/gridss.properties"
   """
-  GERMLINEBAM=\$(ls | grep ${germlineID} | grep bam | grep -v bai)
+  GERMLINEBAM=\$(ls | grep ${germlineID} | grep bam\$ | grep -v bai)
   BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
-  LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | grep -v assambly | cut -d "." -f1) | sed 's/\\s */,/g')
+  LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | grep -v assembly | cut -d "." -f1) | sed 's/\\s */,/g')
   TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
   TASKCPUS=\$(( ${task.cpus} / 4 )) ##"preprocessing will use up to 200-300% CPU per thread"
   gridss \
@@ -475,10 +473,11 @@ process gridss_vcf_pp {
 
   label 'low_mem'
 
-  publishDir path: "$params.outDir/output/gridss", mode: "copy"
+  publishDir path: "$params.outDir/output/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
+
 
   input:
-  tuple file(vcf), file(tbi) from gridsspp
+  tuple val(germlineID), file(vcf), file(tbi) from gridsspp
   file(bwa) from reference.bwa
 
   output:
@@ -489,9 +488,9 @@ process gridss_vcf_pp {
 
   script:
   def dict = "${bwa}/*dict"
-  def which_genome = reference.grchvers == "grch37" ? "hg19" : "hg38"
+  def which_genome = reference.grchvers =~ "grch37" ? "hg19" : "hg38"
   """
-  Rscript -e "somenone::gridss_parse_plot(\\"${params.runID}.somatic_filter.vcf.bgz\\", \\"${germlineID}\\", \$(echo \\"${dict}\\"), \\"${which_genome}\\", NULL)"
+  Rscript -e "somenone::gridss_parse_plot(vcf = \\"${params.runID}.somatic_filter.vcf.bgz\\", germline_id = \\"${germlineID}\\", dict_file = \$(echo \\"${dict}\\"), which_genome = \\"${which_genome}\\", output_path = NULL)"
   """
 }
 
@@ -1123,9 +1122,9 @@ process vcfGRa {
 
   label 'med_mem'
 
-  publishDir "$params.outDir/output/pdf", pattern: '*.pdf'
-  publishDir "$params.outDir/output/vcf", pattern: '*.vcf'
-  publishDir "$params.outDir/output/data", pattern: '*.[*RData,*tab]'
+  publishDir "$params.outDir/output/pdf", mode: "copy", pattern: '*.pdf'
+  publishDir "$params.outDir/output/vcf", mode: "copy", pattern: '*.vcf'
+  publishDir "$params.outDir/output/data", mode: "copy", pattern: '*[.RData, .tsv]'
 
   input:
   file(grangesvcfs) from allvcfs

@@ -760,14 +760,32 @@ process cosmic {
     params.cosmicUser && params.cosmicPass
 
     output:
-    file 'cancer_gene_census.csv'
+    file 'cancer_gene_census.*'
 
     script:
     """
+    ##README to show date of download
+    echo \$(date) > README.cosmic_cancer-gene-census_dl.txt
+
     ##https://cancer.sanger.ac.uk/cosmic/help/file_download
     curl -H "Authorization: Basic \$(echo ${params.cosmicUser}:${params.cosmicPass} | base64)" https://cancer.sanger.ac.uk/cosmic/file_download/${params.assembly}/cosmic/${params.cosmicVers}/cancer_gene_census.csv > url.txt
 
     URL=\$(cut -d '"' -f4 url.txt)
     curl -o cancer_gene_census.csv \$URL
+
+    ##parse into BED format (many thanks for comma in 'Name' field NOT)
+    tail -n+2 cancer_gene_census.csv | \\
+    perl -ane '@s=split(/\\,/);
+               foreach \$k (@s){
+                 if(\$k=~m/\\d+:\\d+-\\d+/){
+                     @p=split(/[:-]/, \$k);
+                     if(\$s[-2]=~/^ENS/){
+                       \$ens=\$s[-2];
+                     }
+                     if(\$s[-3]=~/^ENS/){
+                       \$ens=\$s[-3];
+                     }
+                 print "\$p[0]\\t\$p[1]\\t\$p[2]\\t\$s[0];\$ens\\n"; next;
+               }};' | sort -V > cancer_gene_census.bed
     """
 }
