@@ -687,8 +687,7 @@ process fctcsv {
   script:
   def dbsnp = "${dbsnp_files}/*gz"
   """
-  {s
-    snp-pileup \
+  { snp-pileup \
       \$(echo ${dbsnp}) \
       -r 10 \
       -p \
@@ -719,8 +718,7 @@ process fctcon {
 
   script:
   """
-  {
-    Rscript -e "somenone::facets_cna_consensus(\\"fit_cncf_jointsegs.tsv\\", \\"${dict}\\", \\"${params.runID}\\")"
+  { Rscript -e "somenone::facets_cna_consensus(\\"fit_cncf_jointsegs.tsv\\", \\"${dict}\\", \\"${params.runID}\\")"
   } 2>&1 | tee > facets_cons.log.txt
   """
 }
@@ -1131,6 +1129,9 @@ runGRanges
  .collect()
  .set { allvcfs }
 
+//separate out impacts processing as WGS cango above walltime
+impacts = ["HIGH", "HIGH,MODERATE", "HIGH,MODERATE,MODIFIER,LOW"]
+
 process vcfGRa {
 
   label 'med_mem'
@@ -1142,15 +1143,16 @@ process vcfGRa {
   input:
   file(grangesvcfs) from allvcfs
   val(germlineID) from vcfGRaID.unique()
+  each impact from impacts
 
   output:
-  file('*.pcgr.all.tsv.vcf') into vcfs_pcgr
+  file('*HMML_impacts.pcgr.tsv.vcf') into vcfs_pcgr
   file('*') into completedvcfGRangesConsensus
 
   script:
   def inc_ord = params.incOrder ? params.incOrder : "noord"
   """
-  Rscript -e "somenone::variant_consensus(germline_id = \\"${germlineID}\\", vep_vcf_pattern = \\"snv_indel.pass.vep.vcf\\", raw_vcf_pattern = \\"raw.vcf\\", tag = \\"${params.runID}\\", included_order = \\"${inc_ord}\\")"
+  Rscript -e "somenone::variant_consensus(germline_id = \\"${germlineID}\\", vep_vcf_pattern = \\"snv_indel.pass.vep.vcf\\", raw_vcf_pattern = \\"raw.vcf\\", tag = \\"${params.runID}\\", included_order = \\"${inc_ord}\\", impacts = \\"${impact}\\")"
   """
 }
 
@@ -1172,8 +1174,8 @@ process pcgr_vcf {
   script:
   sampleID = "${vcf}".split("\\.")[0]
   """
-  for VCF in *pcgr.all.tsv.vcf; do
-    NVCF=\$(echo \$VCF | sed 's/pcgr.all.tsv.vcf/snv_indel.pass.pcgr.vcf/')
+  for VCF in *pcgr.tsv.vcf; do
+    NVCF=\$(echo \$VCF | sed 's/pcgr.tsv.vcf/snv_indel.pass.pcgr.vcf/')
     cat ${workflow.projectDir}/assets/vcf42.head.txt > \$NVCF
     head -n1 \$VCF >> \$NVCF
     tail -n+2 \$VCF | sort -V >> \$NVCF
