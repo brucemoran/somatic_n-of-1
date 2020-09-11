@@ -1,43 +1,58 @@
 #!/usr/bin/env nextflow
 
-params.help = ""
+def helpMessage() {
+  log.info"""
+  -----------------------------------------------------------------------
+                          SOMATIC_N-OF-1 PIPELINE
+  -----------------------------------------------------------------------Usage:
 
-if (params.help) {
-  log.info ''
-  log.info '-----------------------------------------------------------------------'
-  log.info 'NEXTFLOW 19.10 FASTQ QC, TRIM, ALIGN, SOMATIC+GERMLINE SNV, CNA, REPORT'
-  log.info '-----------------------------------------------------------------------'
-  log.info ''
-  log.info 'Usage: '
-  log.info 'nextflow run brucemoran/somatic_n-of-1'
-  log.info ''
-  log.info 'Mandatory arguments:'
-  log.info '    -profile    Configuration profile (required: standard,singularity)'
-  log.info '    --sampleCsv      STRING      CSV format, headers: type (either "germline" or "somatic"),sampleID,meta,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz; use meta for naming in PCGR, CPSR report'
-  log.info '    --runID      STRING      name for run, used to tag outputs'
-  log.info ''
-  log.info 'Optional arguments:'
-  log.info '    --refDir        STRING      dir in which reference data are held; this should be created by download-references.nf'
-  log.info '    --germline      STRING      run HaplotypeCaller on germline sample and annotate with CPSR (true/false, default: true)'
-  log.info '    --scatGath      NUM         number of pieces to divide intervalList into for scattering to variant calling processes (default: 20 for exome, 100 for WGS)'
-  log.info '    --incOrder      STRING      in final plots, use this ordering of samples (if multiple somatic samples); comma-separated, no spaces (default: alphanumeric sort)'
-  log.info '    --multiqcConfig      STRING      config file for multiqc (default: bin/somatic_n-of-1.multiQC_config.yaml)'
-  log.info '    --seqLevel      STRING      WGS or exome (default: WGS)'
-  log.info '    --exomeTag      STRING      tag used for exome kit when running download-references.nf; check <refDir>/<assembly>/exome/<exometag>.bed to find available'
-  log.info ''
-  exit 1
+  nextflow run brucemoran/somatic_n-of-1
+
+  Mandatory arguments:
+    -profile        [str]       Configuration profile (required: standard,singularity)
+    --sampleCsv     [file]      CSV format, headers: type (either "germline" or "somatic"),sampleID,meta,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz; use meta for naming in PCGR, CPSR reports
+    --runID         [str]       Name for run, used to tag outputs
+    --refDir        [file]      Path of dir in which reference data are held; this should be created by download-references.nf and contain dir <assembly>
+    --assembly      [str]       Either GRCh37 or GRCh38 (default), as per download-references.nf
+    --email         [str]       Email address to send reports
+
+  General Optional Arguments:
+    --germline      [bool]      Run HaplotypeCaller on germline sample and annotate with CPSR (default: true)
+    --scatGath      [int]       Number of pieces to divide intervalList into for scattering to variant calling processes (default: 20 for exome, 100 for WGS)
+    --incOrder      [str]       In final plots, use this ordering of samples (if multiple somatic samples); comma-separated, no spaces (default: alphanumeric sort)
+    --multiqcConfig [str]       Config file for multiqc (default: bin/somatic_n-of-1.multiQC_config.yaml)
+    --seqLevel      [str]       WGS or exome (default: WGS)
+    --exomeTag      [str]       Tag used for exome kit when running download-references.nf
+    --cosmic        [bool]      set this to specify output of COSMIC CGC genes only (somatic only; based on download and supply of CGC file in download_references.nf)
+    """.stripIndet()
 }
 
-/* -2 Test if refDir is defined, if not run DNAseq_references pipeline under defaults
-*/
-if(!params.refDir){
-  exit 1, "Please see github.com/brucemoran/somatic_n-of-1/ for how to run download-references.nf"
+if (params.help) exit 0, helpMessage()
+
+//Test Mandatory Arguments
+if(!Channel.from(params.sampleCsv, checkIfExists: true)){
+  exit 1, "Please include --sampleCsv, see --help for format"
 }
 
-/* -1: Global Variables
-*/
+if(!Channel.from(params.runID, checkIfExists: true)){
+    exit 1, "Please include --runID <your_runID>"
+}
+
+if(!Channel.from(params.refDir, checkIfExists: true)){
+  exit 1, "Please include --refDir <path> see github.com/brucemoran/somatic_n-of-1/ for how to run download-references.nf"
+}
+
+if(!Channel.from(params.assembly, checkIfExists: true)){
+    exit 1, "Please include --assembly <GRCh3x>"
+}
+
+if(!params.email){
+    exit 1, "Please include --email your@email.com"
+}
+
+//Global Variables based on input
 params.outDir = "${params.seqLevel}_output"
-params.seqlevel = "$params.seqLevel".toLowerCase()
+params.seqlevel = "${params.seqLevel}".toLowerCase()
 
 //Java task memory allocation via task.memory
 javaTaskmem = { it.replace(" GB", "g") }
@@ -57,7 +72,7 @@ reference = [
     seqlevel: false
 ]
 
-reference.grchvers  = Channel.fromPath("$params.refDir/pcgr/data/*", type: 'dir').getVal()
+reference.grchvers  = Channel.fromPath("${params.refDir}/${params.assembly}/pcgr/data/*", type: 'dir').getVal()
 reference.fa = Channel.value(file(params.genomes[params.assembly].fa))
 reference.fai = Channel.value(file(params.genomes[params.assembly].fai))
 reference.dict = Channel.value(file(params.genomes[params.assembly].dict))
@@ -68,25 +83,30 @@ reference.gridss = Channel.value(file(params.genomes[params.assembly].gridss))
 reference.pcgrbase = Channel.value(file(params.genomes[params.assembly].pcgr))
 reference.seqlevel = Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}"))
 
-//setting of intlist based on seqlevel and exomeTag
-reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("$params.refDir/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("$params.refDir/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
+//set cosmic
+reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[params.assembly].cosmic)) : null
 
-// Channel.fromPath("${reference.bed}").println { it }
+//setting of intlist based on seqlevel and exomeTag
+reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
 
 /* 0.00: Input using sample.csv
 */
-Channel.fromPath("$params.sampleCsv")
+Channel.fromPath("${params.sampleCsv}")
        .splitCsv( header: true )
        .map { row -> [row.type, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
        .set { bbduking }
 
-/* 0.01: Input trimming
+/*
+================================================================================
+                          0. PREPROCESS INPUT FASTQ
+================================================================================
 */
+// 0.1: Input trimming
 process bbduk {
 
   label 'med_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/bbduk", mode: "copy", pattern: "*.txt"
+  publishDir path: "${params.outDir}/samples/${sampleID}/bbduk", mode: "copy", pattern: "*.txt"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bbduking
@@ -122,13 +142,12 @@ process bbduk {
   """
 }
 
-/* 0.2: fastp QC of pre-, post-bbduk
-*/
+// 0.2: fastp QC of pre-, post-bbduk
 process fastp {
 
   label 'low_mem'
 
-  publishDir "$params.outDir/samples/$sampleID/fastp", mode: "copy", pattern: "*.html"
+  publishDir "${params.outDir}/samples/${sampleID}/fastp", mode: "copy", pattern: "*.html"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(preread1), file(preread2), file(postread1), file(postread2) from fastping
@@ -145,13 +164,12 @@ process fastp {
   """
 }
 
-/* 0.3: fastQC of per, post-bbduk
-*/
+// 0.3: fastQC of per, post-bbduk
 process fastqc {
 
   label 'low_mem'
 
-  publishDir "$params.outDir/samples/$sampleID/fastqc", mode: "copy", pattern: "*.html"
+  publishDir "${params.outDir}/samples/${sampleID}/fastqc", mode: "copy", pattern: "*.html"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from fastqcing
@@ -166,8 +184,12 @@ process fastqc {
   """
 }
 
-/* 1.0: Input alignment
+/*
+================================================================================
+                        1. ALIGNMENT AND BAM PROCESSING
+================================================================================
 */
+// 1.0: Input alignment
 process bwamem {
 
   label 'high_mem'
@@ -196,14 +218,13 @@ process bwamem {
   """
 }
 
-/* 1.1: CRAM alignment and output
-* TODO: output upload schema for ENA/EGA
-*/
+// 1.1: CRAM alignment and output
+// TODO: output upload schema for ENA/EGA
 process cram {
 
   label 'low_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/bwa", mode: "copy", pattern: "*.cra*"
+  publishDir path: "${params.outDir}/samples/${sampleID}/bwa", mode: "copy", pattern: "*.cra*"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from cramming
@@ -219,13 +240,12 @@ process cram {
   """
 }
 
-/* 1.2: MarkDuplicates
-*/
+// 1.2: MarkDuplicates
 process mrkdup {
 
   label 'high_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/picard", mode: "copy", pattern: "*.txt"
+  publishDir path: "${params.outDir}/samples/${sampleID}/picard", mode: "copy", pattern: "*.txt"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from dup_marking
@@ -258,13 +278,12 @@ process mrkdup {
   """
 }
 
-/* 1.3: GATK4 BestPractices
-*/
+// 1.3: GATK4 BestPractices
 process gtkrcl {
 
   label 'high_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/gatk4/bestpractice", mode: "copy", pattern: "*.GATK4_BQSR.log.txt "
+  publishDir path: "${params.outDir}/samples/${sampleID}/gatk4/bestpractice", mode: "copy", pattern: "*.GATK4_BQSR.log.txt "
 
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from gatk4recaling
@@ -310,8 +329,7 @@ process gtkrcl {
   """
 }
 
-/* 1.31: scatter-gather implementation for mutect2, lancet
-*/
+// 1.4: scatter-gather implementation for mutect2, lancet
 process scat_gath {
 
   label 'low_mem'
@@ -348,9 +366,13 @@ process scat_gath {
   done
   """
 }
-
-/* 1.4: GATK4 Germline Haplotypecaller
+/*
+================================================================================
+                            2.  MUTATION CALLING
+================================================================================
 */
+// 2.0: GATK4 Germline Haplotypecaller
+// Groovy to combine scatter-gather BEDs with bam file for germline
 hcbedding = hc_bedding.flatten()
 hc_germ
   .map { it -> [it[0],it[1],it[2],it[3],it[4]] }
@@ -404,7 +426,7 @@ process haplotypecaller {
 }
 
 
-/* 1.5: GRIDSS SV calling in WGS
+/* 2.1.1: GRIDSS SV calling in WGS
 * because we do not know order or number of samples, create tuple with
 * dummy as first and all others as list of elements
 * then count them inside process
@@ -418,7 +440,7 @@ process gridss {
 
   label 'max_mem'
 
-  publishDir path: "$params.outDir/output/gridss", mode: "copy"
+  publishDir path: "${params.outDir}/output/gridss", mode: "copy"
 
   input:
   file(listbams) from gridssin
@@ -444,7 +466,7 @@ process gridss {
   LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | grep -v assembly | cut -d "." -f1) | sed 's/\\s */,/g')
   TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
   TASKCPUS=\$(( ${task.cpus} / 4 )) ##"preprocessing will use up to 200-300% CPU per thread"
-  gridss \
+  gridss.sh \
     --reference \$(echo ${fasta}) \
     --output ${params.runID}".output.vcf.gz" \
     --assembly ${params.runID}".assembly.bam" \
@@ -469,11 +491,12 @@ process gridss {
   """
 }
 
+//2.1.2 GRIDSS parse and plot
 process gridss_vcf_pp {
 
   label 'low_mem'
 
-  publishDir path: "$params.outDir/output/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
+  publishDir path: "${params.outDir}/output/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
 
   input:
@@ -494,7 +517,7 @@ process gridss_vcf_pp {
   """
 }
 
-// 2.42: HC_merge
+// 2.2: HaplotypeCaller merge
 hc_gt
   .groupTuple()
   .map { it -> tuple(it[0], it[1..-1].flatten()) }
@@ -504,7 +527,7 @@ process hc_merge {
 
   label 'high_mem'
 
-  publishDir path: "$params.outDir/output/vcf", mode: "copy", pattern: '*.vcf.*'
+  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf.*'
 
   input:
   tuple val(sampleID), file(rawvcfs) from hc_fm
@@ -521,14 +544,13 @@ process hc_merge {
   """
 }
 
-/* 1.25: CPSR annotation of GATK4 Germline
-*/
+// 2.3: CPSR annotation of GATK4 Germline
 process cpsrreport {
   echo true
   label 'med_mem'
 
-  publishDir "$params.outDir/reports", mode: "copy", pattern: "*.html"
-  publishDir "$params.outDir/output/cpsr", mode: "copy", pattern: "*[!.html]"
+  publishDir "${params.outDir}/reports", mode: "copy", pattern: "*.html"
+  publishDir "${params.outDir}/output/cpsr", mode: "copy", pattern: "*[!.html]"
 
   input:
   tuple val(sampleID), val(meta), file(vcf), file(tbi) from cpsr_vcf
@@ -537,6 +559,7 @@ process cpsrreport {
 
   output:
   file('*') into cpsr_vcfs
+  file("*.html") into sendmail_cpsr
 
   script:
   def grchv = "${grchver}".split("\\/")[-1]
@@ -559,8 +582,7 @@ process cpsrreport {
   """
 }
 
-/* 2.0: filter germline channel, tap into somatic channels for all processes subsequent
-*/
+// 2.4: filter germline channel, tap into somatic channels for all processes subsequent
 def germfilter = branchCriteria {
                   germfiltered: it[0] == "germline"
                   return it
@@ -588,13 +610,12 @@ somagermtap
                      it[3][0..1]).flatten() }
   .into { mutect2somaticing; mutect2_contam; facetsomaing; mantastrelka2ing; lanceting; gpling }
 
-/* 2.1: PicardTools metrics suite for MultiQC HTML report
-*/
+// 2.5: PicardTools metrics suite for MultiQC HTML report
 process mltmet {
 
   label 'med_mem'
 
-  publishDir "$params.outDir/samples/$sampleID/metrics"
+  publishDir "${params.outDir}/samples/${sampleID}/metrics"
 
   input:
   tuple val(type), val(sampleID), file(bam), file(bai) from gmultimetricing
@@ -647,14 +668,12 @@ process mltmet {
   """
 }
 
-/*2.21: SCNA with facets CSV snp-pileup
-*/
-
+//2.6.1: SCNA with facets CSV snp-pileup
 process fctcsv {
 
   label 'med_mem'
 
-  publishDir "$params.outDir/samples/$sampleID/facets"
+  publishDir "${params.outDir}/samples/${sampleID}/facets"
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from facetsomaing
@@ -668,7 +687,7 @@ process fctcsv {
   script:
   def dbsnp = "${dbsnp_files}/*gz"
   """
-  {
+  {s
     snp-pileup \
       \$(echo ${dbsnp}) \
       -r 10 \
@@ -679,21 +698,17 @@ process fctcsv {
 
     Rscript -e "somenone::facets_cna_call(\\"${sampleID}.facets.r10.csv\\")"
 
-    echo -e "Chromosome\\tStart\\tEnd\\tSegment_Mean" > ${sampleID}.cncf_jointsegs.pcgr.tsv
-    tail -n+2 ${sampleID}.fit_cncf_jointsegs.tsv | awk '{print \$1"\\t"\$10"\\t"\$11"\\t"\$5}' >> ${sampleID}.cncf_jointsegs.pcgr.tsv
-
     tail -n+2 ${sampleID}.fit_ploidy_purity.tsv > ${sampleID}.fit_ploidy_purity.pcgr.tsv
   } 2>&1 | tee > ${sampleID}.facets.log.txt
   """
 }
 
-/* 2.22: SCNA consensus from facets
-*/
+// 2.6.2: SCNA consensus from facets
 process fctcon {
 
   label 'med_mem'
 
-  publishDir "$params.outDir/output/scna/facets"
+  publishDir "${params.outDir}/output/scna/facets"
 
   input:
   file(filesn) from facets_consensusing.collect()
@@ -716,9 +731,9 @@ mutect2somaticing
   .combine(mutect2bedding)
   .set { mutect2somaticbedding }
 
-/* 2.41: MuTect2
-* NB --germline-resource dollar-sign{dbsnp} removed as no AF causing error
-*/
+// 2.7.1: MuTect2
+// NB --germline-resource dollar-sign{dbsnp} removed as no AF causing error
+
 process mutct2_sg {
 
   label 'med_mem'
@@ -758,7 +773,7 @@ process mutct2_sg {
   """
 }
 
-// 2.42: MuTect2_merge
+// 2.7.2: MuTect2_merge
 mutect2_gt
   .groupTuple()
   .map { it -> tuple(it[0], it[1][0..-1].flatten()) }
@@ -786,8 +801,7 @@ mutect2_st
   .map { it -> tuple(it[0], it[1][0..-1].flatten()) }
   .set { mutect2_sm }
 
-/* 2.43: MuTect2 Concatenate VCFs
-*/
+// 2.7.3: MuTect2 Concatenate VCFs
 process mutct2_concstat {
 
   label 'med_mem'
@@ -805,8 +819,7 @@ process mutct2_concstat {
   """
 }
 
-/* 2.44: MuTect2 Concatenate VCFs
-*/
+// 2.7.4: MuTect2 Concatenate VCFs
 mutect2_f1r2.groupTuple()
             .map { it -> [it[0], it[1..-1].flatten()] }
             .set { mutect2_f1r2_set }
@@ -828,8 +841,7 @@ process mutct2_f1r2_comb {
   """
 }
 
-/* 2.44: MuTect2 Contamination
-*/
+// 2.7.5: MuTect2 Contamination
 mutect2_contam
   .join(mutect2_merge)
   .join(mutect2_stats)
@@ -842,9 +854,9 @@ process mutct2_contam_filter {
 
   label 'med_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/mutect2", mode: "copy", overwrite: true
-  publishDir path: "$params.outDir/output/vcf", mode: "copy", pattern: '*raw.vcf', overwrite: true
-  publishDir path: "$params.outDir/samples/", mode: "copy", pattern: '*issue.table', overwrite: true
+  publishDir path: "${params.outDir}/samples/${sampleID}/mutect2", mode: "copy", overwrite: true
+  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*raw.vcf', overwrite: true
+  publishDir path: "${params.outDir}/samples/", mode: "copy", pattern: '*issue.table', overwrite: true
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai), file(mergevcf), file(statsvcf), file(readorient) from mutect2_contam_merge
@@ -904,14 +916,13 @@ process mutct2_contam_filter {
   """
 }
 
-/* 2.5: Manta output is a pre-req for Strelka2, so call both here
-*/
+// 2.9: Manta output is a pre-req for Strelka2, so call both here
 process mntstr {
 
   label 'high_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/manta-strelka2", mode: "copy"
-  publishDir path: "$params.outDir/output/vcf", mode: "copy", pattern: '*[.strelka2.snv_indel.raw.vcf, .strelka2.snv_indel.pass.vcf]'
+  publishDir path: "${params.outDir}/samples/${sampleID}/manta-strelka2", mode: "copy"
+  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*[.strelka2.snv_indel.raw.vcf, .strelka2.snv_indel.pass.vcf]'
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mantastrelka2ing
@@ -958,8 +969,7 @@ process mntstr {
   """
 }
 
-/* 2.61: Lancet
-*/
+// 2.10.1: Lancet
 lancetbedding = lancet_bedding.flatten()
 lanceting
   .map { it -> [it[0],it[1],it[2],it[3],it[4],it[5]]}
@@ -1004,8 +1014,7 @@ process lancet_sg {
   """
 }
 
-/* 2.62: Lancet Merge
-*/
+// 2.10.2: Lancet Merge
 lancet_gt
   .groupTuple()
   .map { it -> tuple(it[0], it[1][0..-1].flatten()) }
@@ -1028,14 +1037,14 @@ process lancet_concat {
   """
 }
 
-/* 2.63: Lancet Filter
+/* 2.10.2: Lancet Filter
 */
 process lancet_filter {
 
   label 'med_mem'
 
-  publishDir path: "$params.outDir/samples/$sampleID/lancet"
-  publishDir path: "$params.outDir/output/vcf", mode: "copy", pattern: '*raw.vcf'
+  publishDir path: "${params.outDir}/samples/$sampleID/lancet"
+  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*raw.vcf'
 
   input:
   tuple val(sampleID), file(mergevcf) from lancet_merge
@@ -1055,8 +1064,12 @@ process lancet_filter {
   """
 }
 
-/* 3.0: Annotate Vcfs
+/*
+================================================================================
+                          3.  ANNOTATION AND REPORTING
+================================================================================
 */
+// 3.0: Annotate Vcfs
 ALLVCFS = lancet_veping
           .mix( mutect2_veping )
           .mix( strelka2_veping )
@@ -1065,7 +1078,7 @@ process vepann {
 
   label 'med_mem'
 
-  publishDir path: "$params.outDir/output/vcf", mode: "copy", pattern: '*.vcf'
+  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
 
   input:
   each file(vcf) from ALLVCFS
@@ -1122,9 +1135,9 @@ process vcfGRa {
 
   label 'med_mem'
 
-  publishDir "$params.outDir/output/pdf", mode: "copy", pattern: '*.pdf'
-  publishDir "$params.outDir/output/vcf", mode: "copy", pattern: '*.vcf'
-  publishDir "$params.outDir/output/data", mode: "copy", pattern: '*[.RData, .tsv]'
+  publishDir "${params.outDir}/output/pdf", mode: "copy", pattern: '*.pdf'
+  publishDir "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
+  publishDir "${params.outDir}/output/data", mode: "copy", pattern: '*[.RData, .tsv]'
 
   input:
   file(grangesvcfs) from allvcfs
@@ -1145,8 +1158,7 @@ vcfs_pcgr
   .flatten()
   .set { vcfs_pcgrd }
 
-/* 3.2 Create VCF for PCGR from consensus
-*/
+// 3.2 Create VCF for PCGR from consensus
 process pcgr_vcf {
 
   label 'low_mem'
@@ -1162,7 +1174,7 @@ process pcgr_vcf {
   """
   for VCF in *pcgr.all.tsv.vcf; do
     NVCF=\$(echo \$VCF | sed 's/pcgr.all.tsv.vcf/snv_indel.pass.pcgr.vcf/')
-    cat ${workflow.projectDir}/bin/vcf42.head.txt > \$NVCF
+    cat ${workflow.projectDir}/assets/vcf42.head.txt > \$NVCF
     head -n1 \$VCF >> \$NVCF
     tail -n+2 \$VCF | sort -V >> \$NVCF
   done
@@ -1175,15 +1187,14 @@ snvpass_pcgr
   .map { it -> tuple(it[0], it[1..-1]).flatten() }
   .set { pcgr_inputs }
 
-/* 3.3 PCGR report
-* take all mutations in consensus.tab from pass.vcfs into single VCF for PCGR
-*/
+// 3.3 PCGR report
+// take all mutations in consensus.tab from pass.vcfs into single VCF for PCGR
 process pcgrreport {
 
   label 'low_mem'
 
-  publishDir "$params.outDir/reports", mode: "copy", pattern: "*html"
-  publishDir "$params.outDir/samples/$sampleID/pcgr", mode: "copy", pattern: "*[!.html]"
+  publishDir "${params.outDir}/reports", mode: "copy", pattern: "*html"
+  publishDir "${params.outDir}/samples/${sampleID}/pcgr", mode: "copy", pattern: "*[!.html]"
 
   input:
   tuple val(sampleID), file(vcf), val(meta), file(jointsegs), file(ploidpur) from pcgr_inputs
@@ -1192,6 +1203,7 @@ process pcgrreport {
 
   output:
   file('*') into completed_pcgr
+  file("*.html") into sendmail_pcgr
 
   script:
   grch_vers = "${grchver}".split("\\/")[-1]
@@ -1229,13 +1241,18 @@ process pcgrreport {
   """
 }
 
+/*
+================================================================================
+                          4.  MULTIQC AND CLOSEOUT
+================================================================================
+*/
 /* 4.0 Run multiQC to finalise report
 */
 process mltiQC {
 
   label 'low_mem'
 
-  publishDir path: "$params.outDir/reports", mode: "copy", pattern: "*html"
+  publishDir path: "${params.outDir}/reports", mode: "copy", pattern: "*html"
 
   input:
   file(fastps) from fastp_multiqc.collect()
@@ -1246,9 +1263,89 @@ process mltiQC {
 
   output:
   file('*') into completedmultiqc
+  file("*.html") into sendmail_multiqc
 
   script:
   """
   multiqc . -i ${params.runID}".somatic_n-of-1" --tag DNA -f -c ${params.multiqcConfig}
   """
+}
+
+// 4.1.1: somatic_n-of-1 container software versions
+process somenone_software_vers {
+  publishDir "${params.outDir}/pipeline_info", mode: 'copy'
+
+  output:
+  file 'somenone_software_versions.yaml' into ch_somenone_software_vers
+
+  script:
+  """
+  conda env export > somenone_software_versions.yaml
+  """
+}
+
+// 4.1.2: gridss software version numbers
+//out of use as using Docker from GRIDSS now
+// process gridss_software_vers {
+//   publishDir "${params.outDir}/pipeline_info", mode: 'copy'
+//
+//   output:
+//   file 'gridss_software_versions.yaml' into ch_gridss_software_vers
+//
+//   script:
+//   """
+//   conda env export > gridss_software_versions.yaml
+//   """
+// }
+
+// 4.19: ZIP for sending on sendmail
+sendmail_pcgr.mix(sendmail_multiqc).set { sendmail_all }
+
+process zipup {
+
+  input:
+  file(send_all) from sendmail_all.collect()
+
+  output:
+  file("${params.runID}.somatic_n-of-1.zip") into send_zip
+
+  script:
+  """
+  zip ${params.runID}.somatic_n-of-1.zip *.html
+  """
+}
+
+// 4.2: Completion e-mail notification
+
+workflow.onComplete {
+  sleep(100000)
+  def subject = """\
+    [brucemoran/somatic_n-of-1] SUCCESS: $params.runID [$workflow.runName]
+    """
+    .stripIndent()
+  if (!workflow.success) {
+      subject = """\
+        [brucemoran/somatic_n-of-1] FAILURE: $params.runID [$workflow.runName]
+        """
+        .stripIndent()
+  }
+
+  def msg = """\
+    Pipeline execution summary
+    ---------------------------
+    RunID       : ${params.runID}
+    RunName     : ${workflow.runName}
+    Completed at: ${workflow.complete}
+    Duration    : ${workflow.duration}
+    workDir     : ${workflow.workDir}
+    exit status : ${workflow.exitStatus}
+    """
+    .stripIndent()
+
+  def attachments = send_zip.toList().getVal()
+
+  sendMail(to: "${params.email}",
+           subject: subject,
+           body: msg,
+           attach: attachments)
 }

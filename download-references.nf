@@ -584,6 +584,8 @@ process pcgr_data {
 
 process pcgr_toml {
 
+  publishDir "$params.outdir/pcgr/data/${params.assemblylc}", mode: "copy", pattern: "*.toml"
+
   input:
   file(toml) from pcgrtoml
   file(exomebed) from pcgrtoml_exome
@@ -632,17 +634,15 @@ process pcgr_toml {
 process vepdb {
 
   publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
-  publishDir "$params.outdir/pcgr/data/${params.assemblylc}", mode: "copy", pattern: "*.toml"
 
   input:
   file(data) from pcgrdata
   file(releasenotes) from pcgrreleasenotes
   file(pcgrdbvepdir) from pcgrdbvep
-  file(tomls) into pcgrtomld.collect()
+  file(tomls) from pcgrtomld.collect()
 
   output:
   file('data') into complete_vepdb
-  file('pcgr_configuration_*.toml') into complete_pcgrtoml
 
   script:
   """
@@ -735,7 +735,7 @@ process hartwigmed {
   """
 }
 
-process gridss {
+process gridss_props {
 
     publishDir path: "$params.outdir/gridss", mode: "copy"
 
