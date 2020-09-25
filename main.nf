@@ -69,7 +69,8 @@ reference = [
     gridss: false,
     pcgrbase: false,
     intlist: false,
-    seqlevel: false
+    seqlevel: false,
+    bbres: false
 ]
 
 reference.grchvers  = Channel.fromPath("${params.refDir}/${params.assembly}/pcgr/data/*", type: 'dir').getVal()
@@ -118,10 +119,10 @@ process bbduk {
   tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into fastqcing
 
   script:
-  def taskmem = javaTaskmem("${task.memory}")
+  def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
   """
   {
-  sh bbduk.sh -Xmx${taskmem} \
+  sh bbduk.sh ${taskmem} \
     in1=${read1} \
     in2=${read2} \
     out1=${sampleID}".bbduk.R1.fastq.gz" \
@@ -133,7 +134,7 @@ process bbduk {
     trimq=20 \
     qtrim=rl \
     maq=20 \
-    ref=/opt/miniconda/envs/somatic_n-of-1/opt/bbmap-38.57-0/resources/adapters.fa \
+    ref=/opt/miniconda/envs/somatic_n-of-1/opt/bbmap-adapters.fa \
     tpe \
     tbo \
     stats=${sampleID}".bbduk.adapterstats.txt" \
@@ -255,12 +256,12 @@ process mrkdup {
   tuple val(type), val(sampleID), val(meta), file('*.md.bam'), file('*.md.bam.bai') into ( gatk4recaling, gridssing )
 
   script:
-  taskmem = javaTaskmem("${task.memory}")
+  def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
   """
   OUTBAM=\$(echo ${bam} | sed 's/bam/md.bam/')
   OUTMET=\$(echo ${bam} | sed 's/bam/md.metrics.txt/')
   {
-  picard -Xmx${taskmem} \
+  picard ${taskmem} \
     MarkDuplicates \
     TMP_DIR=./ \
     INPUT=${bam} \
@@ -400,14 +401,14 @@ process haplotypecaller {
   type == "germline" & params.germline != false
 
   script:
-  def taskmem = javaTaskmem("${task.memory}")
+  def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
   def dbsnp = "${dbsnp_files}/*gz"
   def omni = "${hc_dbs_files}/KG_omni*.gz"
   def kgp1 = "${hc_dbs_files}/KG_phase1*.gz"
   def hpmp = "${hc_dbs_files}/hapmap*.gz"
   """
   SCATGATHN=\$(echo ${intlist} | perl -ane '@s=split(/\\./);print \$s[2];')
-  gatk --java-options -Xmx${taskmem} HaplotypeCaller \
+  gatk ${taskmem} HaplotypeCaller \
     -R ${fasta} \
     -I ${bam} \
     --dont-use-soft-clipped-bases \
@@ -450,13 +451,13 @@ process gridss {
 
   output:
   file('*') into completegridss
-  tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
+  tuple val(germlineID), file("tumords.txt"), file("${params.runID}.output.vcf.gz") into gridssfilter
 
   when:
-  params.seqlevel == "wgs" && params.refDir =~ /GRCh37/
+  params.seqlevel == "wgs" && params.assembly == "GRCh37"
 
   script:
-  taskmem = javaTaskmem("${task.memory}")
+  def jvmheap_taskmem = task.memory == null ? "" : "--jvmheap " + javaTaskmem("${task.memory}")
   def fasta = "${bwa}/*fasta"
   def gridss_blacklist = "${gridss_files}/gridss_blacklist.noChr.bed"
   def gridss_props = "${gridss_files}/gridss.properties"
@@ -471,9 +472,8 @@ process gridss {
     --output ${params.runID}".output.vcf.gz" \
     --assembly ${params.runID}".assembly.bam" \
     --threads \$TASKCPUS \
-    --jar /opt/miniconda/envs/gridss/share/gridss-2.9.3-0/gridss.jar\
-    --workingdir ./ \
-    --jvmheap ${taskmem} \
+    --jar /opt/gridss/gridss-2.9.4-gridss-jar-with-dependencies.jar \
+    --workingdir ./ ${jvmheap_taskmem} \
     --blacklist ${gridss_blacklist} \
     --steps All \
     --configuration ${gridss_props} \
@@ -481,17 +481,41 @@ process gridss {
     --labels \$LABELS \
     \$BAMFILES
 
-  Rscript --vanilla /opt/miniconda/envs/gridss/share/gridss/scripts/gridss_somatic_filter.R \
-    --input ${params.runID}".output.vcf.gz" \
-    --output ${params.runID}".somatic_filter.vcf" \
-    --plotdir ./ \
-    --scriptdir /opt/miniconda/envs/gridss/share/gridss-2.9.3-0 \
-    --normalordinal 1 \
-    --tumourordinal \$TUMORDS
+  echo \$TUMORDS > tumords.txt
   """
 }
 
-//2.1.2 GRIDSS parse and plot
+/* 2.1.2: GRIDSS SV filtering
+*/
+process gridss_filter {
+
+  label 'max_mem'
+
+  publishDir path: "${params.outDir}/output/gridss", mode: "copy"
+
+  input:
+  tuple val(germlineID), file(tumords), file("${params.runID}.output.vcf.gz") from gridssfilter
+
+  output:
+  file('*') into gridssfilterd
+  tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
+
+  when:
+  params.seqlevel == "wgs" && params.assembly == "GRCh37"
+
+  script:
+  """
+  Rscript --vanilla /opt/gridss/gridss_somatic_filter.R \
+    --input ${params.runID}".output.vcf.gz" \
+    --output ${params.runID}".somatic_filter.vcf" \
+    --plotdir ./ \
+    --scriptdir /opt/gridss \
+    --normalordinal 1 \
+    --tumourordinal \$(cat $tumords)
+  """
+}
+
+//2.1.3 GRIDSS parse and plot
 process gridss_vcf_pp {
 
   label 'low_mem'
@@ -507,11 +531,11 @@ process gridss_vcf_pp {
   file('*') into completegridsspp
 
   when:
-  params.seqlevel == "wgs" && params.refDir =~ /GRCh37/
+  params.seqlevel == "wgs" && params.assembly == "GRCh37"
 
   script:
   def dict = "${bwa}/*dict"
-  def which_genome = reference.grchvers =~ "grch37" ? "hg19" : "hg38"
+  def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
   """
   Rscript -e "somenone::gridss_parse_plot(vcf = \\"${params.runID}.somatic_filter.vcf.bgz\\", germline_id = \\"${germlineID}\\", dict_file = \$(echo \\"${dict}\\"), which_genome = \\"${which_genome}\\", output_path = NULL)"
   """
@@ -628,11 +652,11 @@ process mltmet {
   file('*.txt') into multimetrics_multiqc
 
   script:
-  taskmem = javaTaskmem("${task.memory}")
+  def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
   """
   {
   if [[ ${params.seqlevel} == "exome" ]]; then
-  picard -Xmx${taskmem} CollectHsMetrics \
+  picard ${taskmem} CollectHsMetrics \
     I=${bam} \
     O=${sampleID}".hs_metrics.txt" \
     TMP_DIR=./ \
@@ -640,25 +664,25 @@ process mltmet {
     BAIT_INTERVALS=${intlist}  \
     TARGET_INTERVALS=${intlist}
   fi
-  picard -Xmx${taskmem} CollectAlignmentSummaryMetrics \
+  picard ${taskmem} CollectAlignmentSummaryMetrics \
     I=${bam} \
     O=${sampleID}".AlignmentSummaryMetrics.txt" \
     TMP_DIR=./ \
     R=${fasta}
 
-  picard -Xmx${taskmem} CollectMultipleMetrics \
+  picard ${taskmem} CollectMultipleMetrics \
     I=${bam} \
     O=${sampleID}".CollectMultipleMetrics.txt" \
     TMP_DIR=./ \
     R=${fasta}
 
-  picard -Xmx${taskmem} CollectSequencingArtifactMetrics \
+  picard ${taskmem} CollectSequencingArtifactMetrics \
     I=${bam} \
     O=${sampleID}".artifact_metrics.txt" \
     TMP_DIR=./ \
     R=${fasta}
 
-  picard -Xmx${taskmem} CollectInsertSizeMetrics \
+  picard ${taskmem} CollectInsertSizeMetrics \
     I=${bam} \
     O=${sampleID}".insert_size_metrics.txt" \
     H=${bam}".histogram.pdf" \
@@ -711,16 +735,23 @@ process fctcon {
 
   input:
   file(filesn) from facets_consensusing.collect()
+  file(cosmicbed) from reference.cosmic
   file(dict) from reference.dict
 
   output:
   file('*') into complete_facets
 
   script:
-  """
-  { Rscript -e "somenone::facets_cna_consensus(\\"fit_cncf_jointsegs.tsv\\", \\"${dict}\\", \\"${params.runID}\\")"
-  } 2>&1 | tee > facets_cons.log.txt
-  """
+  if( !params.cosmic )
+    """
+    { Rscript -e "somenone::facets_cna_consensus(\\"fit_cncf_jointsegs.tsv\\", \\"${dict}\\", \\"${params.runID}\\")"
+    } 2>&1 | tee > facets_cons.log.txt
+    """
+  else
+    """
+    { Rscript -e "somenone::facets_cna_consensus(\\"fit_cncf_jointsegs.tsv\\", \\"${dict}\\", \\"${params.runID}\\", \\"${cosmicbed}\\")"
+    } 2>&1 | tee > facets_cons.log.txt
+    """
 }
 
 mutect2bedding = mutect2_bedding.flatten()
@@ -748,10 +779,10 @@ process mutct2_sg {
   tuple val(sampleID), file('*mutect2.f1r2.tar.gz') into mutect2_f1r2
 
   script:
-  taskmem = javaTaskmem("${task.memory}")
+  def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
   """
   SCATGATHN=\$(echo ${intlist} | perl -ane '@s=split(/\\./);print\$s[2];')
-  gatk --java-options -Xmx${taskmem} \
+  gatk ${taskmem} \
     Mutect2 \
     --native-pair-hmm-threads ${task.cpus} \
     --reference ${fasta} \
@@ -871,10 +902,10 @@ process mutct2_contam_filter {
   file('*') into completedmutect2call
 
   script:
-  def taskmem = javaTaskmem("${task.memory}")
+  def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
   def gpsgz = params.seqlevel == "exome" ? "${gps_files}/af-only-gnomad.${params.exomeTag}.hg*.noChr.vcf.gz" : "${gps_files}/af-only-gnomad.wgs.hg*.noChr.vcf.gz"
   """
-  gatk --java-options -Xmx${taskmem} \
+  gatk ${taskmem} \
     GetPileupSummaries \
     -I ${tumourbam} \
     -V \$(echo ${gpsgz}) \
@@ -891,9 +922,9 @@ process mutct2_contam_filter {
   fi
 
   gatk IndexFeatureFile \
-    --feature-file ${mergevcf}
+    --input ${mergevcf}
 
-  gatk --java-options -Xmx${taskmem} \
+  gatk ${taskmem} \
     FilterMutectCalls \
     --reference ${fasta} \
     --contamination-table ${sampleID}".calculatecontamination.table" \
@@ -936,32 +967,27 @@ process mntstr {
 
   script:
   def bedgz = params.seqlevel == "wgs" ? "${bed_files}/wgs.bed.gz" : "${bed_files}/${params.exomeTag}.bed.gz"
+  def callRegions = params.seqlevel == "exome" ? "--exome --callRegions ${bedgz}" : "--callRegions ${bedgz}"
   """
   {
-  if [[ ${params.seqlevel} == "exome" ]];then
-    CR="--exome --callRegions ${bedgz}"
-  else
-    CR="--callRegions ${bedgz}"
-  fi
+    configManta.py ${callRegions} --referenceFasta=${fasta} --normalBam=${germlinebam} --tumourBam=${tumourbam} --runDir=manta
 
-  configManta.py \$CR --referenceFasta=${fasta} --normalBam=${germlinebam} --tumourBam=${tumourbam} --runDir=manta
+    manta/runWorkflow.py -m local -j ${task.cpus}
 
-  manta/runWorkflow.py -m local -j ${task.cpus}
+    configureStrelkaSomaticWorkflow.py ${callRegions} --referenceFasta=${fasta} --indelCandidates=manta/results/variants/candidateSmallIndels.vcf.gz --normalBam=${germlinebam} --tumorBam=${tumourbam} --runDir=strelka2
 
-  configureStrelkaSomaticWorkflow.py \$CR --referenceFasta=${fasta} --indelCandidates=manta/results/variants/candidateSmallIndels.vcf.gz --normalBam=${germlinebam} --tumorBam=${tumourbam} --runDir=strelka2
+    strelka2/runWorkflow.py -m local -j ${task.cpus}
 
-  strelka2/runWorkflow.py -m local -j ${task.cpus}
+    ##merge into raw snv_indel
+    gatk MergeVcfs -I strelka2/results/variants/somatic.snvs.vcf.gz -I strelka2/results/variants/somatic.indels.vcf.gz -O tmp.strelka2.snv_indel.vcf
 
-  ##merge into raw snv_indel
-  gatk MergeVcfs -I strelka2/results/variants/somatic.snvs.vcf.gz -I strelka2/results/variants/somatic.indels.vcf.gz -O tmp.strelka2.snv_indel.vcf
+    ${workflow.projectDir}/bin/manta_strelka2_rename_filter.sh  tmp.strelka2.snv_indel.vcf tmp2.strelka2.snv_indel.vcf ${sampleID} ${germlineID}
 
-  ${workflow.projectDir}/bin/manta_strelka2_rename_filter.sh  tmp.strelka2.snv_indel.vcf tmp2.strelka2.snv_indel.vcf ${sampleID} ${germlineID}
-
-  perl ${workflow.projectDir}/bin/filter_Lancet_Mutect2_Manta-Strelka2_Format.pl \
-      ID=${sampleID} \
-      DP=14 \
-      MD=2 \
-      VCF=tmp2.strelka2.snv_indel.vcf
+    perl ${workflow.projectDir}/bin/filter_Lancet_Mutect2_Manta-Strelka2_Format.pl \
+        ID=${sampleID} \
+        DP=14 \
+        MD=2 \
+        VCF=tmp2.strelka2.snv_indel.vcf
 
   } 2>&1 | tee > ${sampleID}.manta-strelka2.log.txt
   """
@@ -991,8 +1017,8 @@ process lancet_sg {
   params.seqlevel == "exome"
 
   script:
+  scatgathn = "${bed}".split("\\.")[2]
   """
-  SCATGATHN=\$(echo $bed | perl -ane '@s=split(/\\./);print\$s[2];')
   lancet \
     --num-threads ${task.cpus} \
     --ref ${fasta} \
@@ -1003,11 +1029,11 @@ process lancet_sg {
       \$_=~s/TUMOR/${sampleID}/;
       \$_=~s/NORMAL/${germlineID}/;
       print \$_;}
-    else{print \$_;}' > ${sampleID}"."\${SCATGATHN}".lancet.vcf"
+    else{print \$_;}' > ${sampleID}"."${scatgathn}".lancet.vcf"
 
   picard SortVcf \
-    I=${sampleID}"."\${SCATGATHN}".lancet.vcf" \
-    O=${sampleID}"."\${SCATGATHN}".sort.lancet.vcf" \
+    I=${sampleID}"."${scatgathn}".lancet.vcf" \
+    O=${sampleID}"."${scatgathn}".sort.lancet.vcf" \
     SD=${dict}
   """
 }
@@ -1134,7 +1160,7 @@ impacts = ["HIGH", "HIGH,MODERATE", "HIGH,MODERATE,MODIFIER,LOW"]
 
 process vcfGRa {
 
-  label 'med_mem'
+  label 'max_mem'
 
   publishDir "${params.outDir}/output/pdf", mode: "copy", pattern: '*.pdf'
   publishDir "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
@@ -1146,7 +1172,7 @@ process vcfGRa {
   each impact from impacts
 
   output:
-  file('*HMML_impacts.pcgr.tsv.vcf') into vcfs_pcgr
+  file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
   file('*') into completedvcfGRangesConsensus
 
   script:
@@ -1156,11 +1182,11 @@ process vcfGRa {
   """
 }
 
-vcfs_pcgr
-  .flatten()
-  .set { vcfs_pcgrd }
+// 3.2 Create VCF for PCGR from consensus (reheader based on vcf 4.2 standards)
+vcfs_pcgrd = vcfs_pcgr
+              .collect()
+              .flatten()
 
-// 3.2 Create VCF for PCGR from consensus
 process pcgr_vcf {
 
   label 'low_mem'
@@ -1169,17 +1195,18 @@ process pcgr_vcf {
   file(vcf) from vcfs_pcgrd
 
   output:
-  tuple val(sampleID), file("${sampleID}.*.snv_indel.pass.pcgr.vcf") into snvpass_pcgr
+  tuple val(sampleID), file(ovcf) into snvpass_pcgr
+
+  when:
+  vcf =~ "HMML_impacts.pcgr.tsv.vcf"
 
   script:
   sampleID = "${vcf}".split("\\.")[0]
+  ovcf = "${vcf}".replace("pcgr.tsv.vcf", "snv_indel.pass.pcgr.vcf")
   """
-  for VCF in *pcgr.tsv.vcf; do
-    NVCF=\$(echo \$VCF | sed 's/pcgr.tsv.vcf/snv_indel.pass.pcgr.vcf/')
-    cat ${workflow.projectDir}/assets/vcf42.head.txt > \$NVCF
-    head -n1 \$VCF >> \$NVCF
-    tail -n+2 \$VCF | sort -V >> \$NVCF
-  done
+  cat ${workflow.projectDir}/assets/vcf42.head.txt > $ovcf
+  head -n1 $vcf >> $ovcf
+  tail -n+2 $vcf | sort -V >> $ovcf
   """
 }
 
@@ -1194,6 +1221,8 @@ snvpass_pcgr
 process pcgrreport {
 
   label 'low_mem'
+  errorStrategy 'retry'
+  maxRetries 3
 
   publishDir "${params.outDir}/reports", mode: "copy", pattern: "*html"
   publishDir "${params.outDir}/samples/${sampleID}/pcgr", mode: "copy", pattern: "*[!.html]"
@@ -1209,6 +1238,7 @@ process pcgrreport {
 
   script:
   grch_vers = "${grchver}".split("\\/")[-1]
+  config = params.seqlevel == "exome" ? "${pcgrbase}/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml"
   """
   {
   ##want META to allow spaces, remove non-alphanum
@@ -1222,17 +1252,10 @@ process pcgrreport {
     PURITY="--tumor_purity \$(cut -f 2 ${ploidpur})"
   fi
 
-  if [[ ${params.seqlevel} == exome ]]; then
-    CONFIG=\$(readlink -e ${pcgrbase}/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml)
-  fi
-  if [[ ${params.seqlevel} == wgs ]]; then
-    CONFIG=\$(readlink -e ${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml)
-  fi
-
   pcgr.py ${pcgrbase} \
     ./ \
     ${grch_vers} \
-    \$CONFIG \
+    ${config} \
     \$META \
     --input_vcf ${vcf} \
     --input_cna ${jointsegs} \$PLOIDY \$PURITY \

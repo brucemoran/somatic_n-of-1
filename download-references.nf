@@ -12,7 +12,6 @@ if (params.help) {
   log.info 'nextflow run download-references.nf -profile singularity,refs'
   log.info ''
   log.info '  --assembly   STRING    GRCh37 or GRCh38 (default)'
-  log.info '  --outDir    STRING    output directory path; NB ${params.assembly} dir is created therein'
   log.info '  --exomeTag    STRING    naming for exome outputs when supplied; tag is then used in somatic_n-of-1 and batch_somatic pipelines to select relevant exome data'
   log.info '  and either'
   log.info '  --exomeBedURL     STRING      URL to exome bed file for intervals; NB assumes GRCh37'
@@ -27,7 +26,7 @@ if (params.help) {
 
 /* 0.0: Global Variables
 */
-params.outdir = "${params.outDir}/${params.assembly}"
+params.outdir = "${params.assembly}"
 
 //base URL for GRCh37, 38
 params.gsurl37 = "gs://gatk-legacy-bundles/b37"
@@ -38,11 +37,33 @@ params.assemblylc = "${params.assembly}".toLowerCase()
 
 /* 1.0: Download GATK4 resource bundle fasta
 */
-process fasta_dl {
 
-  validExitStatus 0,1,2
+process fasta_gs {
+
+  label 'gs'
   errorStrategy 'retry'
   maxRetries 3
+
+  output:
+  file('*') into fasta
+
+  script:
+  if( params.assemblylc == 'grch37' )
+    """
+    ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
+    gsutil -q cp ${params.gsurl37}/human_g1k_v37.fasta.gz .
+    """
+  else
+    """
+    ##moved to Verily as gs bucket more reliable
+    gsutil -q cp gs://genomics-public-data/references/GRCh38_Verily/GRCh38_Verily_v1.genome.fa .
+    """
+}
+
+process fasta_process {
+
+  input:
+  file(fa) from fasta
 
   output:
   tuple file('*noChr.fasta'), file('*noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall)
@@ -50,17 +71,12 @@ process fasta_dl {
   script:
   if( params.assemblylc == 'grch37' )
     """
-    ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
-    gsutil cp ${params.gsurl37}/human_g1k_v37.fasta.gz ./human_g1k_v37.fasta.gz
-    gunzip -c human_g1k_v37.fasta.gz | sed 's/>chr/>/g' > human_g1k_v37.noChr.fasta
+    gunzip -c ${fa} | sed 's/>chr/>/g' > human_g1k_v37.noChr.fasta
     samtools faidx human_g1k_v37.noChr.fasta
     """
   else
     """
-    ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
-    ##moved to Verily as gs bucket more reliable
-    gsutil cp gs://genomics-public-data/references/GRCh38_Verily/GRCh38_Verily_v1.genome.fa ./
-    cat GRCh38_Verily_v1.genome.fa | sed 's/>chr/>/g' > GRCh38_Verily_v1.genome.noChr.fasta
+    cat ${fa} | sed 's/>chr/>/g' > GRCh38_Verily_v1.genome.noChr.fasta
     samtools faidx GRCh38_Verily_v1.genome.noChr.fasta
     """
 }
@@ -90,7 +106,7 @@ process dict_pr {
 */
 process dbsnp_dl {
 
-  validExitStatus 0,1,2
+  label 'gs'
   errorStrategy 'retry'
   maxRetries 3
 
@@ -104,11 +120,11 @@ process dbsnp_dl {
   script:
   if( params.assemblylc == 'grch37' )
     """
-    gsutil cp ${params.gsurl37}/1000G_phase1.snps.high_confidence.b37.vcf.gz ./KG_phase1.snps.high_confidence.b37.vcf.gz
-    gsutil cp ${params.gsurl37}/dbsnp_138.b37.vcf.gz ./dbsnp_138.b37.vcf.gz
-    gsutil cp ${params.gsurl37}/hapmap_3.3.b37.vcf.gz ./hapmap_3.3.b37.vcf.gz
-    gsutil cp ${params.gsurl37}/1000G_omni2.5.b37.vcf.gz ./KG_omni2.5.b37.vcf.gz
-    gsutil cp ${params.gsurl37}/Mills_and_1000G_gold_standard.indels.b37.vcf.gz ./Mills_KG_gold.indels.b37.vcf.gz
+    gsutil -q cp ${params.gsurl37}/1000G_phase1.snps.high_confidence.b37.vcf.gz ./KG_phase1.snps.high_confidence.b37.vcf.gz
+    gsutil -q cp ${params.gsurl37}/dbsnp_138.b37.vcf.gz ./dbsnp_138.b37.vcf.gz
+    gsutil -q cp ${params.gsurl37}/hapmap_3.3.b37.vcf.gz ./hapmap_3.3.b37.vcf.gz
+    gsutil -q cp ${params.gsurl37}/1000G_omni2.5.b37.vcf.gz ./KG_omni2.5.b37.vcf.gz
+    gsutil -q cp ${params.gsurl37}/Mills_and_1000G_gold_standard.indels.b37.vcf.gz ./Mills_KG_gold.indels.b37.vcf.gz
 
     gunzip -cd dbsnp_138.b37.vcf.gz | sed 's/chr//g' > dbsnp_138.b37.vcf
     gunzip -cd hapmap_3.3.b37.vcf.gz | sed 's/chr//g' > hapmap_3.3.b37.sites.vcf
@@ -118,12 +134,12 @@ process dbsnp_dl {
     """
   else
     """
-    gsutil cp gs://genomics-public-data/cwl-examples/gdc-dnaseq-cwl/input/dbsnp_144.hg38.vcf.gz ./dbsnp_144.hg38.vcf.gz
-    gsutil cp ${params.gsurl38}/1000G_phase1.snps.high_confidence.hg38.vcf.gz ./KG_phase1.snps.high_confidence.hg38.vcf.gz
-    gsutil cp ${params.gsurl38}/Homo_sapiens_assembly38.dbsnp138.vcf ./Homo_sapiens_assembly38.dbsnp138.vcf
-    gsutil cp ${params.gsurl38}/hapmap_3.3.hg38.vcf.gz ./hapmap_3.3.hg38.vcf.gz
-    gsutil cp ${params.gsurl38}/1000G_omni2.5.hg38.vcf.gz ./KG_omni2.5.hg38.vcf.gz
-    gsutil cp ${params.gsurl38}/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz ./Mills_KG_gold.indels.hg38.vcf.gz
+    gsutil -q cp gs://genomics-public-data/cwl-examples/gdc-dnaseq-cwl/input/dbsnp_144.hg38.vcf.gz ./dbsnp_144.hg38.vcf.gz
+    gsutil -q cp ${params.gsurl38}/1000G_phase1.snps.high_confidence.hg38.vcf.gz ./KG_phase1.snps.high_confidence.hg38.vcf.gz
+    gsutil -q cp ${params.gsurl38}/Homo_sapiens_assembly38.dbsnp138.vcf ./Homo_sapiens_assembly38.dbsnp138.vcf
+    gsutil -q cp ${params.gsurl38}/hapmap_3.3.hg38.vcf.gz ./hapmap_3.3.hg38.vcf.gz
+    gsutil -q cp ${params.gsurl38}/1000G_omni2.5.hg38.vcf.gz ./KG_omni2.5.hg38.vcf.gz
+    gsutil -q cp ${params.gsurl38}/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz ./Mills_KG_gold.indels.hg38.vcf.gz
 
     gunzip -cd dbsnp_144.hg38.vcf.gz | sed 's/chr//g' > dbsnp_144.hg38.vcf
     gunzip -cd hapmap_3.3.hg38.vcf.gz | sed 's/chr//g' > hapmap_3.3.hg38.vcf
@@ -400,6 +416,25 @@ process tabix_files {
   """
 }
 
+
+process gnomads {
+
+  label 'gs'
+
+  output:
+  file('af-only-gnomad.*') into ( exome_biall_gnomad, wgs_biall_gnomad )
+
+  script:
+  if( params.assembly == "GRCh37" )
+  """
+  gsutil -q cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
+  """
+  else
+  """
+  gsutil -q cp gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz ./
+  """
+}
+
 /* 3.31: Create Mutect2 af-only-gnomad file
 */
 process exome_biall {
@@ -408,6 +443,7 @@ process exome_biall {
 
   input:
   file(exomebed) from exome_biallgz
+  file(gnomad) from exome_biall_gnomad
   tuple file(fasta), file(fai) from fasta_exome_biall
 
   output:
@@ -418,11 +454,10 @@ process exome_biall {
   if( params.assembly == "GRCh37" )
     """
     cut -f 1,2,3 $exomebed > exome.biall.bed
-    gsutil cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
-    bgzip af-only-gnomad.raw.sites.vcf
-    tabix af-only-gnomad.raw.sites.vcf.gz
-    gunzip -c af-only-gnomad.raw.sites.vcf.gz |
-    bcftools view -R exome.biall.bed af-only-gnomad.raw.sites.vcf.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.hg19.noChr.vcf
+    bgzip ${gnomad}
+    tabix ${gnomad}.gz
+    gunzip -c ${gnomad}.gz |
+    bcftools view -R exome.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.hg19.noChr.vcf
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.hg19.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf
     bgzip af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf
     tabix af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf.gz
@@ -430,8 +465,7 @@ process exome_biall {
   else
     """
     cut -f 1,2,3 $exomebed > exome.biall.bed
-    gsutil cp gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz ./
-    gunzip -c af-only-gnomad.hg38.vcf.gz | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
+    gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
     tabix af-only-gnomad.hg38.noChr.vcf.gz
     bcftools view -R exome.biall.bed af-only-gnomad.hg38.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.hg38.noChr.vcf
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.hg38.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.hg38.noChr.vcf
@@ -452,6 +486,7 @@ process wgs_biall {
 
   input:
   file(wgsbed) from wgs_fasta_biallgz
+  file(gnomad) from wgs_biall_gnomad
   tuple file(fasta), file(fai) from fasta_wgs_biall
 
   output:
@@ -461,12 +496,10 @@ process wgs_biall {
   script:
   if( params.assembly == "GRCh37" )
     """
-    cut -f 1,2,3 $wgsbed > wgs.biall.bed
-
-    gsutil cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
-    bgzip af-only-gnomad.raw.sites.vcf
-    tabix af-only-gnomad.raw.sites.vcf.gz
-    bcftools view -R wgs.biall.bed af-only-gnomad.raw.sites.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg19.noChr.vcf
+    cut -f 1,2,3 ${wgsbed} > wgs.biall.bed
+    bgzip ${gnomad}
+    tabix ${gnomad}.gz
+    bcftools view -R wgs.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg19.noChr.vcf
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg19.noChr.vcf $fai > af-only-gnomad.wgs.hg19.noChr.vcf
     bgzip af-only-gnomad.wgs.hg19.noChr.vcf
     tabix af-only-gnomad.wgs.hg19.noChr.vcf.gz
@@ -474,10 +507,8 @@ process wgs_biall {
   else
     """
     cut -f 1,2,3 $wgsbed > wgs.biall.bed
-    gsutil cp gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz ./
-    gunzip -c af-only-gnomad.hg38.vcf.gz | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
+    gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
     tabix af-only-gnomad.hg38.noChr.vcf.gz
-
     bcftools view -R wgs.biall.bed af-only-gnomad.hg38.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg38.noChr.vcf
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg38.noChr.vcf $fai > af-only-gnomad.wgs.hg38.noChr.vcf
     bgzip af-only-gnomad.wgs.hg38.noChr.vcf
@@ -500,7 +531,7 @@ process indexfeature_files {
   script:
   """
   bgzip $tbtbx
-  gatk IndexFeatureFile -F $tbtbx".gz"
+  gatk IndexFeatureFile --input $tbtbx".gz"
   """
 }
 
@@ -703,7 +734,6 @@ process gensizxml {
 process hartwigmed {
 
   publishDir path: "$params.outdir/gridss", mode: "copy"
-  validExitStatus 0,1,2
   errorStrategy 'retry'
   maxRetries 3
 
@@ -787,5 +817,6 @@ process cosmic {
                      }
                  print "\$p[0]\\t\$p[1]\\t\$p[2]\\t\$s[0];\$ens\\n"; next;
                }};' | sort -V > cancer_gene_census.bed
+
     """
 }

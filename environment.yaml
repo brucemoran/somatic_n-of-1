@@ -41,7 +41,6 @@ dependencies:
   - fastp
   - fastqc
   - gatk4
-  - gdown
   - htslib
   - markdown
   - msisensor
@@ -54,6 +53,7 @@ dependencies:
   - picard
   - pisces
   - r-base
+  - r-bedr
   - r-biocmanager
   - r-circlize
   - r-dbplyr
