@@ -45,9 +45,10 @@ process fasta_gs {
   maxRetries 3
 
   output:
-  file('*') into fasta
+  tuple val(faval), file('*.fasta.gz') into fasta
 
   script:
+  faval = params.assemblylc == 'grch37' ? 'human_g1k_v37' : 'GRCh38_Verily_v1.genome'
   if( params.assemblylc == 'grch37' )
     """
     ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
@@ -57,34 +58,35 @@ process fasta_gs {
     """
     ##moved to Verily as gs bucket more reliable
     gsutil -q cp gs://genomics-public-data/references/GRCh38_Verily/GRCh38_Verily_v1.genome.fa .
+    gzip -c ./GRCh38_Verily_v1.genome.fa > ./GRCh38_Verily_v1.genome.fasta.gz
+    rm ./GRCh38_Verily_v1.genome.fa
     """
 }
 
 process fasta_process {
 
+  label 'low_mem'
+
   input:
-  file(fa) from fasta
+  tuple val(faval), file(fagz) from fasta
 
   output:
-  tuple file('*noChr.fasta'), file('*noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall)
+  tuple file('*.noChr.fasta'), file('*.noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall)
 
   script:
-  if( params.assemblylc == 'grch37' )
-    """
-    gunzip -c ${fa} | sed 's/>chr/>/g' > human_g1k_v37.noChr.fasta
-    samtools faidx human_g1k_v37.noChr.fasta
-    """
-  else
-    """
-    cat ${fa} | sed 's/>chr/>/g' > GRCh38_Verily_v1.genome.noChr.fasta
-    samtools faidx GRCh38_Verily_v1.genome.noChr.fasta
-    """
+  def fa = "${fagz}".split("\\.gz")[0]
+  """
+  gunzip -f \$(readlink ${fagz})
+  cat ${fa} | sed 's/>chr/>/g' > ./${faval}.noChr.fasta
+  samtools faidx ./${faval}.noChr.fasta
+  """
 }
 
 /* 1.1: Dictionary for fasta
 */
 process dict_pr {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/bwa", mode: "copy"
 
   input:
@@ -153,6 +155,7 @@ process dbsnp_dl {
 */
 process ascat_loci {
 
+  label 'low_mem'
   publishDir path: "$params.outdir", mode: "copy"
 
   input:
@@ -176,6 +179,7 @@ process ascat_loci {
 */
 process bwa_index {
 
+  label 'med_mem'
   publishDir path: "$params.outdir/bwa", mode: "copy"
 
   input:
@@ -195,6 +199,7 @@ process bwa_index {
 */
 process dict_pr2 {
 
+  label 'low_mem'
   publishDir path: "$params.outdir", mode: "copy"
 
   input:
@@ -237,6 +242,7 @@ if(!params.exomeTag){
 if(params.exomeBedURL){
   process exome_url {
 
+    label 'low_mem'
     publishDir path: "$params.outdir/exome", mode: "copy"
 
     output:
@@ -274,13 +280,14 @@ if(params.exomeBedFile){
   Channel.fromPath("${params.exomeBedFile}").set { exomebed_file }
   process exome_file {
 
+    label 'low_mem'
     publishDir path: "$params.outdir/exome", mode: "copy"
 
     input:
     file(exomeBedFile) from exomebed_file
 
     output:
-    file("${params.exomeTag}.file.bed") into exome_bed
+    tuple file("${params.exomeTag}.file.bed"), file("README.${params.exomeTag}.file.bed") into exome_bed
 
     script:
     """
@@ -308,6 +315,7 @@ if(params.exomeBedFile){
 
 process lift_over {
 
+  label 'low_mem'
   errorStrategy 'retry'
   maxRetries 3
 
@@ -333,6 +341,7 @@ process lift_over {
 */
 process exome_bed_pr {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/exome", mode: "copy", pattern: "*[.interval_list,.bed]"
 
   input:
@@ -372,6 +381,7 @@ process exome_bed_pr {
 */
 process wgs_bed {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/wgs", mode: "copy"
 
   input:
@@ -399,6 +409,7 @@ process wgs_bed {
 wgs_tabix.concat(exome_tabix).set { bint_tabix }
 process tabix_files {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/exome", mode: "copy", pattern: "{${params.exomeTag}}*"
   publishDir path: "$params.outdir/wgs", mode: "copy", pattern: "{wgs}*"
 
@@ -439,6 +450,7 @@ process gnomads {
 */
 process exome_biall {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/exome", mode: "copy"
 
   input:
@@ -478,11 +490,10 @@ process exome_biall {
 */
 process wgs_biall {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/wgs", mode: "copy"
-
   errorStrategy 'retry'
   maxRetries 3
-  label 'half_cpu_mem'
 
   input:
   file(wgsbed) from wgs_fasta_biallgz
@@ -520,6 +531,7 @@ process wgs_biall {
 */
 process indexfeature_files {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/hc_dbs", mode: "copy", pattern: "{KG,Mills,hapmap}*"
   publishDir path: "$params.outdir/dbsnp", mode: "copy", pattern: "{dbsnp}*"
   input:
@@ -539,6 +551,7 @@ process indexfeature_files {
 */
 process seqnza {
 
+  label 'low_mem'
   publishDir path: "$params.outDir", mode: "copy"
 
   input:
@@ -561,6 +574,7 @@ process seqnza {
 */
 process msisen {
 
+  label 'low_mem'
   publishDir "$params.outdir", mode: "copy"
 
   input:
@@ -581,8 +595,9 @@ process msisen {
 /* 7.0: PCGR/CPSR data bundle
 */
 process pcgr_data {
-  publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
 
+  label 'low_mem'
+  publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
   errorStrategy 'retry'
   maxRetries 3
 
@@ -615,6 +630,7 @@ process pcgr_data {
 
 process pcgr_toml {
 
+  label 'low_mem'
   publishDir "$params.outdir/pcgr/data/${params.assemblylc}", mode: "copy", pattern: "*.toml"
 
   input:
@@ -664,6 +680,7 @@ process pcgr_toml {
 */
 process vepdb {
 
+  label 'low_mem'
   publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
 
   input:
@@ -705,6 +722,7 @@ process vepdb {
 */
 process gensizxml {
 
+  label 'low_mem'
   publishDir "$params.outdir", mode: "copy"
 
   input:
@@ -733,6 +751,7 @@ process gensizxml {
 */
 process hartwigmed {
 
+  label 'low_mem'
   publishDir path: "$params.outdir/gridss", mode: "copy"
   errorStrategy 'retry'
   maxRetries 3
@@ -767,56 +786,58 @@ process hartwigmed {
 
 process gridss_props {
 
-    publishDir path: "$params.outdir/gridss", mode: "copy"
+  label 'low_mem'
+  publishDir path: "$params.outdir/gridss", mode: "copy"
 
-    output:
-    file('gridss.properties') into gridssout
+  output:
+  file('gridss.properties') into gridssout
 
-    when:
-    params.assembly == 'GRCh37'
+  when:
+  params.assembly == 'GRCh37'
 
-    script:
-    """
-    git clone https://github.com/PapenfussLab/gridss
-    mv gridss/src/main/resources/gridss.properties ./
-    """
+  script:
+  """
+  git clone https://github.com/PapenfussLab/gridss
+  mv gridss/src/main/resources/gridss.properties ./
+  """
 }
 
 process cosmic {
 
-    publishDir "${params.outdir}/cosmic", mode: 'copy'
+  label 'low_mem'
+  publishDir "${params.outdir}/cosmic", mode: 'copy'
 
-    when:
-    params.cosmicUser && params.cosmicPass
+  when:
+  params.cosmicUser && params.cosmicPass
 
-    output:
-    file 'cancer_gene_census.*'
+  output:
+  file 'cancer_gene_census.*'
 
-    script:
-    """
-    ##README to show date of download
-    echo \$(date) > README.cosmic_cancer-gene-census_dl.txt
+  script:
+  """
+  ##README to show date of download
+  echo \$(date) > README.cosmic_cancer-gene-census_dl.txt
 
-    ##https://cancer.sanger.ac.uk/cosmic/help/file_download
-    curl -H "Authorization: Basic \$(echo ${params.cosmicUser}:${params.cosmicPass} | base64)" https://cancer.sanger.ac.uk/cosmic/file_download/${params.assembly}/cosmic/${params.cosmicVers}/cancer_gene_census.csv > url.txt
+  ##https://cancer.sanger.ac.uk/cosmic/help/file_download
+  curl -H "Authorization: Basic \$(echo ${params.cosmicUser}:${params.cosmicPass} | base64)" https://cancer.sanger.ac.uk/cosmic/file_download/${params.assembly}/cosmic/${params.cosmicVers}/cancer_gene_census.csv > url.txt
 
-    URL=\$(cut -d '"' -f4 url.txt)
-    curl -o cancer_gene_census.csv \$URL
+  URL=\$(cut -d '"' -f4 url.txt)
+  curl -o cancer_gene_census.csv \$URL
 
-    ##parse into BED format (many thanks for comma in 'Name' field NOT)
-    tail -n+2 cancer_gene_census.csv | \\
-    perl -ane '@s=split(/\\,/);
-               foreach \$k (@s){
-                 if(\$k=~m/\\d+:\\d+-\\d+/){
-                     @p=split(/[:-]/, \$k);
-                     if(\$s[-2]=~/^ENS/){
-                       \$ens=\$s[-2];
-                     }
-                     if(\$s[-3]=~/^ENS/){
-                       \$ens=\$s[-3];
-                     }
-                 print "\$p[0]\\t\$p[1]\\t\$p[2]\\t\$s[0];\$ens\\n"; next;
-               }};' | sort -V > cancer_gene_census.bed
+  ##parse into BED format (many thanks for comma in 'Name' field NOT)
+  tail -n+2 cancer_gene_census.csv | \\
+  perl -ane '@s=split(/\\,/);
+             foreach \$k (@s){
+               if(\$k=~m/\\d+:\\d+-\\d+/){
+                   @p=split(/[:-]/, \$k);
+                   if(\$s[-2]=~/^ENS/){
+                     \$ens=\$s[-2];
+                   }
+                   if(\$s[-3]=~/^ENS/){
+                     \$ens=\$s[-3];
+                   }
+               print "\$p[0]\\t\$p[1]\\t\$p[2]\\t\$s[0];\$ens\\n"; next;
+             }};' | sort -V > cancer_gene_census.bed
 
-    """
+  """
 }

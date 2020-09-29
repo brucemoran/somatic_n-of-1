@@ -106,7 +106,6 @@ Channel.fromPath("${params.sampleCsv}")
 process bbduk {
 
   label 'med_mem'
-
   publishDir path: "${params.outDir}/samples/${sampleID}/bbduk", mode: "copy", pattern: "*.txt"
 
   input:
@@ -147,7 +146,6 @@ process bbduk {
 process fastp {
 
   label 'low_mem'
-
   publishDir "${params.outDir}/samples/${sampleID}/fastp", mode: "copy", pattern: "*.html"
 
   input:
@@ -169,7 +167,6 @@ process fastp {
 process fastqc {
 
   label 'low_mem'
-
   publishDir "${params.outDir}/samples/${sampleID}/fastqc", mode: "copy", pattern: "*.html"
 
   input:
@@ -224,7 +221,6 @@ process bwamem {
 process cram {
 
   label 'low_mem'
-
   publishDir path: "${params.outDir}/samples/${sampleID}/bwa", mode: "copy", pattern: "*.cra*"
 
   input:
@@ -245,7 +241,6 @@ process cram {
 process mrkdup {
 
   label 'high_mem'
-
   publishDir path: "${params.outDir}/samples/${sampleID}/picard", mode: "copy", pattern: "*.txt"
 
   input:
@@ -283,7 +278,6 @@ process mrkdup {
 process gtkrcl {
 
   label 'high_mem'
-
   publishDir path: "${params.outDir}/samples/${sampleID}/gatk4/bestpractice", mode: "copy", pattern: "*.GATK4_BQSR.log.txt "
 
   input:
@@ -440,7 +434,6 @@ gridssing
 process gridss {
 
   label 'max_mem'
-
   publishDir path: "${params.outDir}/output/gridss", mode: "copy"
 
   input:
@@ -490,7 +483,6 @@ process gridss {
 process gridss_filter {
 
   label 'max_mem'
-
   publishDir path: "${params.outDir}/output/gridss", mode: "copy"
 
   input:
@@ -519,7 +511,6 @@ process gridss_filter {
 process gridss_vcf_pp {
 
   label 'low_mem'
-
   publishDir path: "${params.outDir}/output/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
 
@@ -550,7 +541,6 @@ hc_gt
 process hc_merge {
 
   label 'high_mem'
-
   publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf.*'
 
   input:
@@ -570,7 +560,7 @@ process hc_merge {
 
 // 2.3: CPSR annotation of GATK4 Germline
 process cpsrreport {
-  echo true
+
   label 'med_mem'
 
   publishDir "${params.outDir}/reports", mode: "copy", pattern: "*.html"
@@ -591,17 +581,17 @@ process cpsrreport {
   {
   META=\$(echo ${meta} | sed 's/\\s */_/g' | sed 's/[()]//g')
 
-  ##CPSR v0.5.2.2
+  ##CPSR v0.6.0rc
   cpsr.py \
     --no-docker \
     --no_vcf_validate \
     --panel_id 0 \
-    ${vcf} \
-    ${pcgrbase} \
-    ./ \
-    ${grchv} \
-    ${pcgrbase}/data/${grchv}/cpsr_configuration_default.toml \
-    \$META
+    --query_vcf ${vcf} \
+    --pcgr_dir ${pcgrbase} \
+    --output_dir ./ \
+    --genome_assembly ${grchv} \
+    --conf ${pcgrbase}/data/${grchv}/cpsr_configuration_default.toml \
+    --sample_id \$META
   } 2>&1 | tee > ${sampleID}.cpsr.log.txt
   """
 }
@@ -1252,11 +1242,13 @@ process pcgrreport {
     PURITY="--tumor_purity \$(cut -f 2 ${ploidpur})"
   fi
 
-  pcgr.py ${pcgrbase} \
-    ./ \
-    ${grch_vers} \
-    ${config} \
-    \$META \
+  ##PCGR 0.9.0rc
+  pcgr.py \
+    --pcgr_dir ${pcgrbase} \
+    --output_dir ./ \
+    --genome_assembly ${grch_vers} \
+    --conf ${config} \
+    --sample_id \$META \
     --input_vcf ${vcf} \
     --input_cna ${jointsegs} \$PLOIDY \$PURITY \
     --no-docker \
@@ -1276,7 +1268,6 @@ process pcgrreport {
 process mltiQC {
 
   label 'low_mem'
-
   publishDir path: "${params.outDir}/reports", mode: "copy", pattern: "*html"
 
   input:
@@ -1298,6 +1289,8 @@ process mltiQC {
 
 // 4.1.1: somatic_n-of-1 container software versions
 process somenone_software_vers {
+
+  label 'low_mem'
   publishDir "${params.outDir}/pipeline_info", mode: 'copy'
 
   output:
@@ -1310,16 +1303,21 @@ process somenone_software_vers {
 }
 
 // 4.1.2: gridss software version numbers
-//out of use as using Docker from GRIDSS now
+// //out of use as using Docker from GRIDSS now
 // process gridss_software_vers {
+//
+//   label 'low_mem'
 //   publishDir "${params.outDir}/pipeline_info", mode: 'copy'
 //
 //   output:
-//   file 'gridss_software_versions.yaml' into ch_gridss_software_vers
+//   file 'gridss_software_versions.txt' into ch_gridss_software_vers
+//
+//   when:
+//   params.seqlevel == "wgs" && params.assembly == "GRCh37"
 //
 //   script:
 //   """
-//   conda env export > gridss_software_versions.yaml
+//   ls -l /opt/gridss > gridss_software_versions.txt
 //   """
 // }
 
@@ -1327,6 +1325,8 @@ process somenone_software_vers {
 sendmail_pcgr.mix(sendmail_multiqc).set { sendmail_all }
 
 process zipup {
+
+  label 'low_mem'
 
   input:
   file(send_all) from sendmail_all.collect()
