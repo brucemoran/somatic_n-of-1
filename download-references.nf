@@ -698,17 +698,18 @@ process vepdb {
   """
   #! /bin/bash
   ##build VEP cache using PCGR Singularity container 'vep_install' script
-  ##however PCGR installs a assembly of vep cache, so test that matches required assembly, and only install if not
+  ##however PCGR installs a version of vep cache, so test that matches required assembly, and only install if not
+  ##required version is the VEP_INSTALL version in container
 
   ##variables for install and test
-  VEP_INSTALL=\$(find /opt/miniconda/envs/somatic_exome_n-of-1/share/*/vep_install)
-  VEP_assembly=\$(cat $releasenotes | perl -ane 'if(\$F[0] eq "VEP"){@s=split(/\\./,\$F[5]); \$v=\$s[0]; \$v=~s/v//; print \$v;}')
+  VEP_INSTALL=\$(find /opt/miniconda/envs/somatic_n-of-1/share/*/vep_install)
+  VEP_INSTVER=\$(echo \$VEP_INSTALL | perl -ane '@s=split(/\\//, \$F[0]); foreach \$k (@s){ if(\$k =~m/ensembl-vep/){@o=split(/[-.]/, \$k); print \$o[2];}}')
+  VEP_PCGRVER=\$(cat $releasenotes | perl -ane 'if(\$F[0] eq "VEP"){@s=split(/\\./,\$F[5]); \$v=\$s[0]; \$v=~s/v//; print \$v;}')
 
-  ls $pcgrdbvepdir/homo_sapiens/ | cut -d "_" -f 1 > test.match
-  if [[ \$(grep \$VEP_assembly test.match | wc -l) != 1 ]];then
+  if [[ \$VEP_INSTVER != \$VEP_PCGRVER ]];then
     \$VEP_INSTALL \
       --AUTO cf \
-      --CACHE_assembly \$VEP_assembly \
+      --CACHE_VERSION \$VEP_INSTVER \
       --CACHEDIR "./" \
       --SPECIES "homo_sapiens" \
       --ASSEMBLY ${params.assembly} \
