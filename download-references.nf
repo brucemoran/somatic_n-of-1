@@ -65,6 +65,7 @@ process fasta_gs {
 
 process fasta_process {
 
+  echo true
   label 'low_mem'
 
   input:
@@ -76,8 +77,9 @@ process fasta_process {
   script:
   def fa = "${fagz}".split("\\.gz")[0]
   """
-  gunzip -f \$(readlink ${fagz})
+  gunzip -c \$(readlink ${fagz}) > ${fa}
   cat ${fa} | sed 's/>chr/>/g' > ./${faval}.noChr.fasta
+  rm ${fa}
   samtools faidx ./${faval}.noChr.fasta
   """
 }

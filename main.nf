@@ -348,16 +348,26 @@ process scat_gath {
     }
   }
   """
+  ##strip out all but chromosomes in the interval_list (no decoys etc)
+  CHRS=\$(grep -v "@" ${intlist} | cut -f 1 | uniq)
+  for CHR in \$CHRS; do
+    grep "SN:\$CHR\\s" ${intlist} >> used.interval_list
+  done
+  grep -v "@" ${intlist} >> used.interval_list
+
+  ##generate scatters
   picard IntervalListTools \
-    I=${intlist} \
+    I=used.interval_list \
     SCATTER_COUNT=${sgcount} \
     O=./
+
+  ##rename scatters and parse into appropriate format for tools
   ls temp*/* | while read FILE; do
     COUNTN=\$(dirname \$FILE | perl -ane '@s=split(/\\_/); print \$s[1];');
-    mv \$FILE mutect2.scatGath.\${COUNTN}.bed.interval_list;
-    cp mutect2.scatGath.\${COUNTN}.bed.interval_list hc.scatGath.\${COUNTN}.bed.interval_list
-    grep -v @ mutect2.scatGath.\${COUNTN}.bed.interval_list | \
-      cut -f 1,2,3,5 > lancet.scatGath.\${COUNTN}.bed
+    mv \$FILE mutect2.scatgath.\${COUNTN}.bed.interval_list;
+    cp mutect2.scatgath.\${COUNTN}.bed.interval_list hc.scatgath.\${COUNTN}.bed.interval_list
+    grep -v @ mutect2.scatgath.\${COUNTN}.bed.interval_list | \
+      cut -f 1,2,3,5 > lancet.scatgath.\${COUNTN}.bed
   done
   """
 }
@@ -546,6 +556,7 @@ process hc_merge {
   input:
   tuple val(sampleID), file(rawvcfs) from hc_fm
   tuple val(sampleID), val(meta) from hc_mv
+
   output:
   tuple val(sampleID), val(meta), file("${sampleID}.hc.merge.vcf.gz"), file("${sampleID}.hc.merge.vcf.gz.tbi") into cpsr_vcf
 
@@ -879,7 +890,6 @@ process mutct2_contam_filter {
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai), file(mergevcf), file(statsvcf), file(readorient) from mutect2_contam_merge
-
   file(fasta) from reference.fa
   file(fai) from reference.fai
   file(dict) from reference.dict
@@ -1263,8 +1273,7 @@ process pcgrreport {
                           4.  MULTIQC AND CLOSEOUT
 ================================================================================
 */
-/* 4.0 Run multiQC to finalise report
-*/
+// 4.0 Run multiQC to finalise report
 process mltiQC {
 
   label 'low_mem'
@@ -1291,7 +1300,7 @@ process mltiQC {
 process somenone_software_vers {
 
   label 'low_mem'
-  publishDir "${params.outDir}/pipeline_info", mode: 'copy'
+  publishDir "${params.outDir}/../pipeline_info", mode: 'copy'
 
   output:
   file 'somenone_software_versions.yaml' into ch_somenone_software_vers
