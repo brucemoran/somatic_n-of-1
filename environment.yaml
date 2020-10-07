@@ -75,6 +75,7 @@ dependencies:
   - r-pheatmap
   - r-plyr
   - r-rcpp
+  - r-reactable
   - r-readxl
   - r-reshape2
   - r-rmarkdown

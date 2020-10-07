@@ -333,9 +333,9 @@ process scat_gath {
   file(intlist) from reference.intlist
 
   output:
-  file('lancet.scatGath.*.bed') into lancet_bedding
-  file('mutect2.scatGath.*.bed.interval_list') into mutect2_bedding
-  file('hc.scatGath.*.bed.interval_list') into hc_bedding
+  file('lancet.scatgath.*.bed') into lancet_bedding
+  file('mutect2.scatgath.*.bed.interval_list') into mutect2_bedding
+  file('hc.scatgath.*.bed.interval_list') into hc_bedding
 
   script:
   def sgcount = params.scatGath
@@ -470,6 +470,8 @@ process gridss {
   LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | grep -v assembly | cut -d "." -f1) | sed 's/\\s */,/g')
   TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
   TASKCPUS=\$(( ${task.cpus} / 4 )) ##"preprocessing will use up to 200-300% CPU per thread"
+  echo \$TUMORDS > tumords.txt
+
   gridss.sh \
     --reference \$(echo ${fasta}) \
     --output ${params.runID}".output.vcf.gz" \
@@ -483,8 +485,6 @@ process gridss {
     --maxcoverage 50000 \
     --labels \$LABELS \
     \$BAMFILES
-
-  echo \$TUMORDS > tumords.txt
   """
 }
 
@@ -1262,7 +1262,8 @@ process pcgrreport {
     --input_vcf ${vcf} \
     --input_cna ${jointsegs} \$PLOIDY \$PURITY \
     --no-docker \
-    --force_overwrite
+    --force_overwrite \
+    --no_vcf_validate
 
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
   """

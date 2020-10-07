@@ -596,121 +596,53 @@ process msisen {
 
 /* 7.0: PCGR/CPSR data bundle
 */
-process pcgr_data {
+process pcgr_vep {
 
   label 'low_mem'
   publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
   errorStrategy 'retry'
   maxRetries 3
 
+  input:
+  file(exomebed) from pcgrtoml_exome
+  file(wgsbed) from pcgrtoml_wgs
+
   output:
   file('data') into pcgrdata
-  file("data/${params.assemblylc}/.vep/") into pcgrdbvep
-  file("data/${params.assemblylc}/RELEASE_NOTES") into pcgrreleasenotes
-  file("data/${params.assemblylc}/pcgr_configuration_default.toml") into pcgrtoml
 
   when:
   !params.nopcgr
 
   script:
-  if( params.assembly == "GRCh37" )
-    """
-    wget ${params.pcgrURL37}
-    tar -xf *.tgz
-    rm -rf *.tgz
-    """
-  else
-    """
-    wget ${params.pcgrURL38}
-    tar -xf *.tgz
-    rm -rf *.tgz
-    """
-}
-
-//same issue as https://github.com/labsyspharm/mcmicro/issues/148
-//possibly due to two outputs concurrently trying to publish 'data'(?)
-
-process pcgr_toml {
-
-  label 'low_mem'
-  publishDir "$params.outdir/pcgr/data/${params.assemblylc}", mode: "copy", pattern: "*.toml"
-
-  input:
-  file(toml) from pcgrtoml
-  file(exomebed) from pcgrtoml_exome
-  file(wgsbed) from pcgrtoml_wgs
-
-  output:
-  file("pcgr_configuration_*.toml") into pcgrtomld
-
-  script:
+  downloadURL = params.assembly == "GRCh37" ? "${params.pcgrURL37}" : "${params.pcgrURL38}"
+  exometag = params.exomeTag == null ? "" : "${params.exomeTag}"
   """
-  ##calculate exome size in MB
-  bedtools merge -i $exomebed > exome.biall.merge.bed
-  EMB=\$(echo -n \$(( \$(awk '{s+=\$3-\$2}END{print s}' exome.biall.merge.bed) / 1000000 )))
-  WMB=\$(echo -n \$(( \$(awk '{s+=\$3-\$2}END{print s}' $wgsbed) / 1000000 )))
-  export EMB WMB;
+  wget ${downloadURL}
+  tar -xf *.tgz
+  rm -rf *.tgz
 
-  ##perl to parse standard toml config and output ours
-  perl -ane 'if((\$F[0]=~m/^tmb_intermediate_limit/) || (\$F[0]=~m/^target_size_mb/)){
-    next;
-  }
-  if(\$F[0]=~m/^\\[mutational_burden/) {
-    print "[mutational_burden]\\ntmb_intermediate_limit = 10\\ntarget_size_mb = \$ENV{'EMB'}\\n";
-    next;
-  }
-  if(\$F[0]=~m/^vcf2maf/) {
-    print "vcf2maf = false\\n";
-  }
-  else { print \$_; }' $toml > pcgr_configuration_${params.exomeTag}.toml
+  ##allows editting of TOML for WGS and exome if supplied
+  sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
+    data/${params.assemblylc}/pcgr_configuration_default.toml \
+    ${exomebed} ${exometag}
+  mv pcgr_configuration*.toml data/${params.assemblylc}/
 
-  perl -ane 'if((\$F[0]=~m/^tmb_intermediate_limit/) || (\$F[0]=~m/^target_size_mb/)){
-    next;
-  }
-  if(\$F[0]=~m/^\\[mutational_burden/) {
-    print "[mutational_burden]\\ntmb_intermediate_limit = 10\\ntarget_size_mb = \$ENV{'WMB'}\\n";
-    next;
-  }
-  if(\$F[0]=~m/^vcf2maf/) {
-    print "vcf2maf = false\\n";
-  }
-  else { print \$_; }' $toml > pcgr_configuration_wgs.toml
-  """
-}
-
-/* 3.6: PCGR/CPSR VEP cache
-*/
-process vepdb {
-
-  label 'low_mem'
-  publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
-
-  input:
-  file(data) from pcgrdata
-  file(releasenotes) from pcgrreleasenotes
-  file(pcgrdbvepdir) from pcgrdbvep
-  file(tomls) from pcgrtomld.collect()
-
-  output:
-  file('data') into complete_vepdb
-
-  script:
-  """
-  #! /bin/bash
-  ##build VEP cache using PCGR Singularity container 'vep_install' script
+  ##build VEP cache using Singularity container 'vep_install' script
   ##however PCGR installs a version of vep cache, so test that matches required assembly, and only install if not
   ##required version is the VEP_INSTALL version in container
 
   ##variables for install and test
   VEP_INSTALL=\$(find /opt/miniconda/envs/somatic_n-of-1/share/*/vep_install)
   VEP_INSTVER=\$(echo \$VEP_INSTALL | perl -ane '@s=split(/\\//, \$F[0]); foreach \$k (@s){ if(\$k =~m/ensembl-vep/){@o=split(/[-.]/, \$k); print \$o[2];}}')
-  VEP_PCGRVER=\$(cat $releasenotes | perl -ane 'if(\$F[0] eq "VEP"){@s=split(/\\./,\$F[5]); \$v=\$s[0]; \$v=~s/v//; print \$v;}')
+  VEP_PCGRVER=\$(cat data/${params.assemblylc}/RELEASE_NOTES | perl -ane 'if(\$F[0] eq "VEP"){@s=split(/\\./,\$F[5]); \$v=\$s[0]; \$v=~s/v//; print \$v;}')
 
   if [[ \$VEP_INSTVER != \$VEP_PCGRVER ]];then
+
+    ##remove current and reinstall correct version
     \$VEP_INSTALL \
       --AUTO cf \
       --CACHE_VERSION \$VEP_INSTVER \
-      --CACHEDIR "./" \
+      --CACHEDIR "data/${params.assemblylc}/.vep/" \
       --SPECIES "homo_sapiens" \
       --ASSEMBLY ${params.assembly} \
       --NO_UPDATE \
@@ -721,7 +653,7 @@ process vepdb {
   """
 }
 
-/* 3.7: GenomeSize.xml for Pisces
+/* 8.0: GenomeSize.xml for Pisces
 */
 process gensizxml {
 
@@ -750,7 +682,7 @@ process gensizxml {
   """
 }
 
-/* 4.0: Download hartwigmedical resource bundle
+/* 9.0: Download hartwigmedical resource bundle
 */
 process hartwigmed {
 
