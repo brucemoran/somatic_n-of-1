@@ -50,6 +50,9 @@ if(!params.email){
     exit 1, "Please include --email your@email.com"
 }
 
+if(params.seqLevel == "exome" && params.exomeTag == null){
+    exit 1, "Please define --exomeTag when using --seqLevel exome"
+}
 //Global Variables based on input
 params.outDir = "${params.seqLevel}_output"
 params.seqlevel = "${params.seqLevel}".toLowerCase()
@@ -640,7 +643,7 @@ process mltmet {
 
   label 'med_mem'
 
-  publishDir "${params.outDir}/samples/${sampleID}/metrics"
+  publishDir "${params.outDir}/samples/${sampleID}/metrics", mode: "copy"
 
   input:
   tuple val(type), val(sampleID), file(bam), file(bai) from gmultimetricing
@@ -698,7 +701,7 @@ process fctcsv {
 
   label 'med_mem'
 
-  publishDir "${params.outDir}/samples/${sampleID}/facets"
+  publishDir "${params.outDir}/samples/${sampleID}/facets", mode: "copy"
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from facetsomaing
@@ -732,7 +735,7 @@ process fctcon {
 
   label 'med_mem'
 
-  publishDir "${params.outDir}/output/scna/facets"
+  publishDir "${params.outDir}/output/scna/facets", mode: "copy"
 
   input:
   file(filesn) from facets_consensusing.collect()
@@ -1067,7 +1070,7 @@ process lancet_filter {
 
   label 'med_mem'
 
-  publishDir path: "${params.outDir}/samples/$sampleID/lancet"
+  publishDir path: "${params.outDir}/samples/$sampleID/lancet", mode: "copy"
   publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*raw.vcf'
 
   input:
@@ -1156,7 +1159,7 @@ runGRanges
  .set { allvcfs }
 
 //separate out impacts processing as WGS cango above walltime
-impacts = ["HIGH", "HIGH,MODERATE", "HIGH,MODERATE,MODIFIER,LOW"]
+impacts = ["HIGH,MODERATE,MODIFIER,LOW"]
 
 process vcfGRa {
 
@@ -1263,7 +1266,11 @@ process pcgrreport {
     --input_cna ${jointsegs} \$PLOIDY \$PURITY \
     --no-docker \
     --force_overwrite \
-    --no_vcf_validate
+    --no_vcf_validate \
+    --estimate_tmb \
+    --estimate_msi_status \
+    --estimate_signatures \
+    --include_trials
 
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
   """
@@ -1301,7 +1308,7 @@ process mltiQC {
 process somenone_software_vers {
 
   label 'low_mem'
-  publishDir "${params.outDir}/../pipeline_info", mode: 'copy'
+  publishDir "${params.outDir}/../pipeline_info", mode: "copy"
 
   output:
   file 'somenone_software_versions.yaml' into ch_somenone_software_vers
