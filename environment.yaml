@@ -30,6 +30,7 @@ dependencies:
   - bioconductor-org.hs.eg.db
   - bioconductor-purecn
   - bioconductor-summarizedexperiment
+  - bioconductor-structuralvariantannotation
   - bioconductor-txdb.hsapiens.ucsc.hg19.knowngene
   - bioconductor-txdb.hsapiens.ucsc.hg38.knowngene
   - bioconductor-variantannotation
