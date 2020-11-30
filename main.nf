@@ -4,7 +4,8 @@ def helpMessage() {
   log.info"""
   -----------------------------------------------------------------------
                           SOMATIC_N-OF-1 PIPELINE
-  -----------------------------------------------------------------------Usage:
+  -----------------------------------------------------------------------
+  Usage:
 
   nextflow run brucemoran/somatic_n-of-1
 
@@ -447,7 +448,7 @@ gridssing
 process gridss {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/output/gridss", mode: "copy"
+  publishDir path: "${params.outDir}/sv/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
 
   input:
   file(listbams) from gridssin
@@ -496,7 +497,7 @@ process gridss {
 process gridss_filter {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/output/gridss", mode: "copy"
+  publishDir path: "${params.outDir}/sv/gridss", mode: "copy"
 
   input:
   tuple val(germlineID), file(tumords), file("${params.runID}.output.vcf.gz") from gridssfilter
@@ -524,8 +525,7 @@ process gridss_filter {
 process gridss_vcf_pp {
 
   label 'low_mem'
-  publishDir path: "${params.outDir}/output/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
-
+  publishDir path: "${params.outDir}/sv/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
   input:
   tuple val(germlineID), file(vcf), file(tbi) from gridsspp
@@ -708,7 +708,7 @@ process fctcsv {
   file(dbsnp_files) from reference.dbsnp
 
   output:
-  tuple file("${sampleID}.fit_cncf_jointsegs.tsv"), file("${sampleID}.fit_ploidy_purity.tsv") into facets_consensusing
+  tuple file("${sampleID}.fit_cncf_jointsegs.tsv"), file("${sampleID}.fit_ploidy_purity.tsv") into ( facets_consensusing, facets_pyclone )
   tuple val(sampleID), file("${sampleID}.cncf_jointsegs.pcgr.tsv"), file("${sampleID}.fit_ploidy_purity.pcgr.tsv") into facets_pcgr
   file("${sampleID}.facets.log.txt") into facets_log
 
@@ -1176,12 +1176,14 @@ process vcfGRa {
 
   output:
   file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
+  file('*.master_consensus_all.RData') into rdata_chimaera
   file('*') into completedvcfGRangesConsensus
 
   script:
   def inc_ord = params.incOrder ? params.incOrder : "noord"
+  def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
   """
-  Rscript -e "somenone::variant_consensus(germline_id = \\"${germlineID}\\", vep_vcf_pattern = \\"snv_indel.pass.vep.vcf\\", raw_vcf_pattern = \\"raw.vcf\\", tag = \\"${params.runID}\\", included_order = \\"${inc_ord}\\", impacts = \\"${impact}\\")"
+  Rscript -e "somenone::variant_consensus(germline_id = \\"${germlineID}\\", vep_vcf_pattern = \\"snv_indel.pass.vep.vcf\\", raw_vcf_pattern = \\"raw.vcf\\", tag = \\"${params.runID}\\", which_genome = \\"${which_genome}\\", included_order = \\"${inc_ord}\\", impacts = \\"${impact}\\")"
   """
 }
 
@@ -1275,6 +1277,82 @@ process pcgrreport {
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
   """
 }
+
+// // 3.4 pyclone setup
+// process pyclone_setup {
+//
+//   label 'med_mem'
+//
+//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
+//
+//   input:
+//   file(rdata) from rdata_pyclone
+//   tuple file(facets), file(purity) from facets_pyclone.collect()
+//
+//   output:
+//   file('*.mutation_CN.pyclone.tsv') into pyclone_tsv
+//
+//   script:
+//   """
+//   Rscript -e "somenone::vcf_cn_to_pyclone(mut_rdata = \\"${rdata}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${params.assembly}\\", tag = \\"${params.runID}\\")"
+//   """
+// }
+//
+// // 3.5 pyclone-vi run
+// process pyclone_run {
+//
+//   label 'med_mem'
+//
+//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
+//
+//   input:
+//   file(pyc_input) from pyclone_tsv
+//
+//   output:
+//   file("${params.runID}.mutation_CN.pyclonevi.tsv") into completed_pyclone_setup
+//
+//   script:
+//   """
+//   pyclone-vi fit \
+//     -i ${pyc_input} \
+//     -o ${params.runID}.pyclone-vi-fit.h5 \
+//     -c 10 \
+//     -d beta-binomial \
+//     -r 100
+//
+//   pyclone-vi write-results-file \
+//     -i ${params.runID}.pyclone-vi-fit.h5 \
+//     -o ${params.runID}.pyclone-vi-fit.tsv
+//   """
+// }
+//
+// // 3.6 clonevol run
+// process clonevol_run {
+//
+//   label 'med_mem'
+//
+//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
+//
+//   input:
+//   file(pyc_input) from pyclone_tsv
+//
+//   output:
+//   file("${params.runID}.mutation_CN.pyclonevi.tsv") into completed_pyclone_setup
+//
+//   script:
+//   """
+//   pyclone-vi fit \
+//     -i ${pyc_input} \
+//     -o ${params.runID}.pyclone-vi-fit.h5 \
+//     -c 40 \
+//     -d beta-binomial \
+//     -r 10
+//
+//   pyclone-vi write-results-file \
+//     -i ${params.runID}.pyclone-vi-fit.h5 \
+//     -o ${params.runID}.pyclone-vi-fit.tsv
+//   """
+// }
 
 /*
 ================================================================================

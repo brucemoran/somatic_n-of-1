@@ -751,7 +751,7 @@ process cosmic {
   script:
   """
   ##README to show date of download
-  echo \$(date) > README.cosmic_cancer-gene-census_dl.txt
+  echo \$(date) > cosmic_cancer-gene-census_dl.README.txt
 
   ##https://cancer.sanger.ac.uk/cosmic/help/file_download
   curl -H "Authorization: Basic \$(echo ${params.cosmicUser}:${params.cosmicPass} | base64)" https://cancer.sanger.ac.uk/cosmic/file_download/${params.assembly}/cosmic/${params.cosmicVers}/cancer_gene_census.csv > url.txt
