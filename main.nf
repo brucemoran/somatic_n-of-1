@@ -507,8 +507,8 @@ process gridss_filter {
   tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
 
   when:
-  params.seqlevel == "wgs" && params.assembly == "GRCh37"
-
+  params.seqlevel == "wgs"
+  
   script:
   """
   Rscript --vanilla /opt/gridss/gridss_somatic_filter.R \

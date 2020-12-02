@@ -11,7 +11,8 @@ if (params.help) {
   log.info 'Usage: '
   log.info 'nextflow run download-references.nf -profile singularity,refs'
   log.info ''
-  log.info '  --assembly   STRING    GRCh37 or GRCh38 (default)'
+
+  log.info '  --assembly   STRING    GRCh37 or GRCh38 (default, NB GRCh37 GRIDSS will not function as resources are unavailable and need to be made by user)'
   log.info '  --exomeTag    STRING    naming for exome outputs when supplied; tag is then used in somatic_n-of-1 and batch_somatic pipelines to select relevant exome data'
   log.info '  and either'
   log.info '  --exomeBedURL     STRING      URL to exome bed file for intervals; NB assumes GRCh37'
@@ -697,26 +698,39 @@ process hartwigmed {
   output:
   file('dbs') into gpldld
   file('refgenomes/human_virus') into gpldle
-  file('gridss_*') into gridsspon
-
-  when:
-  params.assembly == 'GRCh37'
+  file('GRIDSS/*') into gridss_bp
+  file('gridss*') into gridss_bpo
 
   script:
-  """
-  curl -o gridss-purple-linx-hg19-refdata-Dec2019.tar.gz "${params.hartwigGPLURL37}"
-  tar -xf gridss-purple-linx-hg19-refdata-Dec2019.tar.gz
-  mv hg19/dbs/ ./dbs/
-  mv hg19/refgenomes ./refgenomes
+  if( params.assembly == "GRCh37" )
+    """
+    curl -o gpl_ref_data_hg37.tar.gz "${params.hartwigGPLURL37}"
+    tar -xf gpl_ref_data_hg37.tar.gz
 
-  curl -o GRIDSS_PON_37972v1.zip "${params.hartwigGRIDSSURL37}"
-  unzip GRIDSS_PON_37972v1.zip
+    curl -o GRIDSS_hg19.zip "${params.hartwigGRIDSSURL}"
+    unzip GRIDSS_hg19.zip
+    unzip GRIDSS/GRIDSS_PON_3792v1.hg19.zip
 
-  curl -o gridss_blacklist.bed.gz https://encode-public.s3.amazonaws.com/2011/05/04/f883c6e9-3ffc-4d16-813c-4c7d852d85db/ENCFF001TDObed.gz
-  cut -f 1 $fai > valid_chrs.txt
-  gunzip -c gridss_blacklist.bed.gz | sed 's/chr//g' > gridss_blacklist.bed
-  perl ${workflow.projectDir}/bin/exact_match_by_col.pl $fai,0 gridss_blacklist.bed,0 > gridss_blacklist.noChr.bed
-  """
+    curl -o gridss_blacklist.bed.gz https://encode-public.s3.amazonaws.com/2011/05/04/f883c6e9-3ffc-4d16-813c-4c7d852d85db/ENCFF001TDObed.gz
+    gunzip -c gridss_blacklist.bed.gz | sed 's/chr//g' > gridss_blacklist.noChr.1.bed
+    perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.1.bed,0 > gridss_blacklist.noChr.hg19.bed
+    """
+  else
+    """
+    curl -o gpl_ref_data_hg38.tar.gz "${params.hartwigGPLURL38}"
+    tar -xf gpl_ref_data_hg38.tar.gz
+    rm -rf gpl_ref_data_hg38.tar.gz
+
+    curl -o GRIDSS_hg38.zip "${params.hartwigGRIDSSURL}"
+    unzip GRIDSS_hg38.zip
+    rm -rf GRIDSS_hg38.zip
+
+    curl -o gridss_blacklist.bed.gz https://encode-public.s3.amazonaws.com/2011/05/04/f883c6e9-3ffc-4d16-813c-4c7d852d85db/ENCFF001TDObed.gz
+    gunzip -c gridss_blacklist.bed.gz | sed 's/chr//g' > gridss_blacklist.noChr.bed
+    perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
+    wget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
+    liftOver gridss_blacklist.noChr.1.bed hg19ToHg38.over.chain.gz gridss_blacklist.noChr.hg38.bed
+    """
 }
 
 process gridss_props {
@@ -726,9 +740,6 @@ process gridss_props {
 
   output:
   file('gridss.properties') into gridssout
-
-  when:
-  params.assembly == 'GRCh37'
 
   script:
   """
