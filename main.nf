@@ -461,7 +461,7 @@ process gridss {
   tuple val(germlineID), file("tumords.txt"), file("${params.runID}.output.vcf.gz") into gridssfilter
 
   when:
-  params.seqlevel == "wgs" && params.assembly == "GRCh37"
+  params.seqlevel == "wgs"
 
   script:
   def jvmheap_taskmem = task.memory == null ? "" : "--jvmheap " + javaTaskmem("${task.memory}")
@@ -508,7 +508,7 @@ process gridss_filter {
 
   when:
   params.seqlevel == "wgs"
-  
+
   script:
   """
   Rscript --vanilla /opt/gridss/gridss_somatic_filter.R \
@@ -535,7 +535,7 @@ process gridss_vcf_pp {
   file('*') into completegridsspp
 
   when:
-  params.seqlevel == "wgs" && params.assembly == "GRCh37"
+  params.seqlevel == "wgs"
 
   script:
   def dict = "${bwa}/*dict"

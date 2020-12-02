@@ -696,10 +696,10 @@ process hartwigmed {
   tuple file(fa), file(fai), file(dict) from fasta_dict_gridss
 
   output:
-  file('dbs') into gpldld
-  file('refgenomes/human_virus') into gpldle
-  file('GRIDSS/*') into gridss_bp
-  file('gridss*') into gridss_bpo
+  file('dbs') into gridss_db
+  file('refgenomes/human_virus') into gridss_hv
+  file('gridss_blacklist.noChr.bed') into gridss_bl
+  file('dbs/gridss/gridss.properties') into gridss_pr
 
   script:
   if( params.assembly == "GRCh37" )
@@ -707,13 +707,10 @@ process hartwigmed {
     curl -o gpl_ref_data_hg37.tar.gz "${params.hartwigGPLURL37}"
     tar -xf gpl_ref_data_hg37.tar.gz
 
-    curl -o GRIDSS_hg19.zip "${params.hartwigGRIDSSURL}"
-    unzip GRIDSS_hg19.zip
-    unzip GRIDSS/GRIDSS_PON_3792v1.hg19.zip
-
-    curl -o gridss_blacklist.bed.gz https://encode-public.s3.amazonaws.com/2011/05/04/f883c6e9-3ffc-4d16-813c-4c7d852d85db/ENCFF001TDObed.gz
-    gunzip -c gridss_blacklist.bed.gz | sed 's/chr//g' > gridss_blacklist.noChr.1.bed
-    perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.1.bed,0 > gridss_blacklist.noChr.hg19.bed
+    ##blacklist
+    sed 's/chr//g' dbs/gridss/ENCFF001TDObed.bed gridss_blacklist.noChr.bed
+    perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
+    mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
     """
   else
     """
@@ -721,31 +718,11 @@ process hartwigmed {
     tar -xf gpl_ref_data_hg38.tar.gz
     rm -rf gpl_ref_data_hg38.tar.gz
 
-    curl -o GRIDSS_hg38.zip "${params.hartwigGRIDSSURL}"
-    unzip GRIDSS_hg38.zip
-    rm -rf GRIDSS_hg38.zip
-
-    curl -o gridss_blacklist.bed.gz https://encode-public.s3.amazonaws.com/2011/05/04/f883c6e9-3ffc-4d16-813c-4c7d852d85db/ENCFF001TDObed.gz
-    gunzip -c gridss_blacklist.bed.gz | sed 's/chr//g' > gridss_blacklist.noChr.bed
+    ##blacklist
+    sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed gridss_blacklist.noChr.bed
     perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
-    wget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
-    liftOver gridss_blacklist.noChr.1.bed hg19ToHg38.over.chain.gz gridss_blacklist.noChr.hg38.bed
+    mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
     """
-}
-
-process gridss_props {
-
-  label 'low_mem'
-  publishDir path: "$params.outdir/gridss", mode: "copy"
-
-  output:
-  file('gridss.properties') into gridssout
-
-  script:
-  """
-  git clone https://github.com/PapenfussLab/gridss
-  mv gridss/src/main/resources/gridss.properties ./
-  """
 }
 
 process cosmic {
