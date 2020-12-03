@@ -709,6 +709,7 @@ process hartwigmed {
 
     ##blacklist
     sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
+    
     perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
     mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
     """
