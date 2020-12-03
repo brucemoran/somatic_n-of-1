@@ -467,7 +467,7 @@ process gridss {
   def jvmheap_taskmem = task.memory == null ? "" : "--jvmheap " + javaTaskmem("${task.memory}")
   def fasta = "${bwa}/*fasta"
   def gridss_blacklist = "${gridss_files}/gridss_blacklist.noChr.bed"
-  def gridss_props = "${gridss_files}/gridss.properties"
+  def gridss_props = "${gridss_files}/dbs/gridss/gridss.properties"
   """
   GERMLINEBAM=\$(ls | grep ${germlineID} | grep bam\$ | grep -v bai)
   BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
