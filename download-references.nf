@@ -1,33 +1,36 @@
 #!/usr/bin/env nextflow
+def helpMessage() {
+  log.info"""
+  --------------------------------------------------------------------------
+              HUMAN REFERENCE FOR SOMATIC_N-OF-1 NEXTFLOW PIPELINE
+  --------------------------------------------------------------------------
+  Usage:
 
-params.help = ""
+  nextflow run brucemoran/somatic_n-of-1/download-references.nf
 
-if (params.help) {
-  log.info ''
-  log.info '-------------------------------------------------------------------'
-  log.info 'NEXTFLOW: MAKE HUMAN REFERENCE FOR SOMATIC_N-OF-1 NEXTFLOW PIPELINE'
-  log.info '-------------------------------------------------------------------'
-  log.info ''
-  log.info 'Usage: '
-  log.info 'nextflow run download-references.nf -profile singularity,refs'
-  log.info ''
+  Mandatory arguments:
 
-  log.info '  --assembly   STRING    GRCh37 or GRCh38 (default, NB GRCh37 GRIDSS will not function as resources are unavailable and need to be made by user)'
-  log.info '  --exomeTag    STRING    naming for exome outputs when supplied; tag is then used in somatic_n-of-1 and batch_somatic pipelines to select relevant exome data'
-  log.info '  and either'
-  log.info '  --exomeBedURL     STRING      URL to exome bed file for intervals; NB assumes GRCh37'
-  log.info '  or'
-  log.info '  --exomeBedFile     STRING      locally downloaded exome bed file for intervals; NB assumes GRCh37'
-  log.info '  --cosmicUser     STRING      COSMIC login credentials, user email'
-  log.info '  --cosmicPass     STRING      COSMIC login credentials, password'
-  log.info ''
-  log.info ''
-  exit 1
+    -profile        [str]     singularity,refs
+    --assembly      [str]     GRCh37 or GRCh38 (default, NB GRCh37 GRIDSS will not  function as resources are unavailable and need to be made by user)
+    --exomeTag      [str]     naming for exome outputs when supplied; tag is then used in somatic_n-of-1 and batch_somatic pipelines to select relevant exome data
+
+    and either:
+    --exomeBedURL   [str]     URL to exome bed file for intervals; NB assumes GRCh37
+    or
+    --exomeBedFile  [str]     locally downloaded exome bed file for intervals; NB assumes GRCh37
+
+  General Optional Arguments:
+
+    --cosmicUser    [str]     COSMIC login credentials, user email
+    --cosmicPass    [str]     COSMIC login credentials, password
+    """.stripIndet()
 }
+
+if (params.help) exit 0, helpMessage()
 
 /* 0.0: Global Variables
 */
-params.outdir = "${params.assembly}"
+params.outDir = "${params.assembly}"
 
 //base URL for GRCh37, 38
 params.gsurl37 = "gs://gatk-legacy-bundles/b37"
@@ -90,7 +93,7 @@ process fasta_process {
 process dict_pr {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/bwa", mode: "copy"
+  publishDir path: "$params.outDir/bwa", mode: "copy"
 
   input:
   tuple file(fa), file(fai) from fasta_dict
@@ -159,7 +162,7 @@ process dbsnp_dl {
 process ascat_loci {
 
   label 'low_mem'
-  publishDir path: "$params.outdir", mode: "copy"
+  publishDir path: "$params.outDir", mode: "copy"
 
   input:
   file(vcf) from ascatloci
@@ -183,7 +186,7 @@ process ascat_loci {
 process bwa_index {
 
   label 'med_mem'
-  publishDir path: "$params.outdir/bwa", mode: "copy"
+  publishDir path: "$params.outDir/bwa", mode: "copy"
 
   input:
   tuple file(fa), file(fai) from fasta_bwa
@@ -203,7 +206,7 @@ process bwa_index {
 process dict_pr2 {
 
   label 'low_mem'
-  publishDir path: "$params.outdir", mode: "copy"
+  publishDir path: "$params.outDir", mode: "copy"
 
   input:
   file(win_dict) from dict_win
@@ -246,7 +249,7 @@ if(params.exomeBedURL){
   process exome_url {
 
     label 'low_mem'
-    publishDir path: "$params.outdir/exome", mode: "copy"
+    publishDir path: "$params.outDir/exome", mode: "copy"
 
     output:
     tuple file("${params.exomeTag}.url.bed"), file("README.${params.exomeTag}.url.bed") into exome_bed
@@ -284,7 +287,7 @@ if(params.exomeBedFile){
   process exome_file {
 
     label 'low_mem'
-    publishDir path: "$params.outdir/exome", mode: "copy"
+    publishDir path: "$params.outDir/exome", mode: "copy"
 
     input:
     file(exomeBedFile) from exomebed_file
@@ -345,7 +348,7 @@ process lift_over {
 process exome_bed_pr {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/exome", mode: "copy", pattern: "*[.interval_list,.bed]"
+  publishDir path: "$params.outDir/exome", mode: "copy", pattern: "*[.interval_list,.bed]"
 
   input:
   tuple file(fa), file(fai), file(dict) from fasta_dict_exome
@@ -385,7 +388,7 @@ process exome_bed_pr {
 process wgs_bed {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/wgs", mode: "copy"
+  publishDir path: "$params.outDir/wgs", mode: "copy"
 
   input:
   tuple file(fa), file(fai), file(dict) from fasta_dict_wgs
@@ -413,8 +416,8 @@ wgs_tabix.concat(exome_tabix).set { bint_tabix }
 process tabix_files {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/exome", mode: "copy", pattern: "{${params.exomeTag}}*"
-  publishDir path: "$params.outdir/wgs", mode: "copy", pattern: "{wgs}*"
+  publishDir path: "$params.outDir/exome", mode: "copy", pattern: "{${params.exomeTag}}*"
+  publishDir path: "$params.outDir/wgs", mode: "copy", pattern: "{wgs}*"
 
   input:
   file(bed) from bint_tabix
@@ -454,7 +457,7 @@ process gnomads {
 process exome_biall {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/exome", mode: "copy"
+  publishDir path: "$params.outDir/exome", mode: "copy"
 
   input:
   file(exomebed) from exome_biallgz
@@ -494,7 +497,7 @@ process exome_biall {
 process wgs_biall {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/wgs", mode: "copy"
+  publishDir path: "$params.outDir/wgs", mode: "copy"
   errorStrategy 'retry'
   maxRetries 3
 
@@ -535,8 +538,8 @@ process wgs_biall {
 process indexfeature_files {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/hc_dbs", mode: "copy", pattern: "{KG,Mills,hapmap}*"
-  publishDir path: "$params.outdir/dbsnp", mode: "copy", pattern: "{dbsnp}*"
+  publishDir path: "$params.outDir/hc_dbs", mode: "copy", pattern: "{KG,Mills,hapmap}*"
+  publishDir path: "$params.outDir/dbsnp", mode: "copy", pattern: "{dbsnp}*"
   input:
   file(tbtbx) from vcf_tabix.flatten()
 
@@ -578,7 +581,7 @@ process seqnza {
 process msisen {
 
   label 'low_mem'
-  publishDir "$params.outdir", mode: "copy"
+  publishDir "$params.outDir", mode: "copy"
 
   input:
   set file(fa), file(fai) from fasta_msi
@@ -600,7 +603,7 @@ process msisen {
 process pcgr_vep {
 
   label 'low_mem'
-  publishDir "$params.outdir/pcgr", mode: "copy", pattern: "data"
+  publishDir "$params.outDir/pcgr", mode: "copy", pattern: "data"
   errorStrategy 'retry'
   maxRetries 3
 
@@ -659,7 +662,7 @@ process pcgr_vep {
 process gensizxml {
 
   label 'low_mem'
-  publishDir "$params.outdir", mode: "copy"
+  publishDir "$params.outDir", mode: "copy"
 
   input:
   set file(fa), file(fai), file(dict) from fasta_dict_gensiz
@@ -688,7 +691,7 @@ process gensizxml {
 process hartwigmed {
 
   label 'low_mem'
-  publishDir path: "$params.outdir/gridss", mode: "copy"
+  publishDir path: "$params.outDir/gridss", mode: "copy"
   errorStrategy 'retry'
   maxRetries 3
 
@@ -709,7 +712,7 @@ process hartwigmed {
 
     ##blacklist
     sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
-    
+
     perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
     mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
     """
@@ -729,7 +732,7 @@ process hartwigmed {
 process cosmic {
 
   label 'low_mem'
-  publishDir "${params.outdir}/cosmic", mode: 'copy'
+  publishDir "${params.outDir}/cosmic", mode: 'copy'
 
   when:
   params.cosmicUser && params.cosmicPass
