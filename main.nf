@@ -226,6 +226,7 @@ process cram {
 
   label 'low_mem'
   publishDir path: "${params.outDir}/samples/${sampleID}/bwa", mode: "copy", pattern: "*.cra*"
+  publishDir path: "${params.outDir}/writeup/crams", mode: "copy", pattern: "*.cra*"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from cramming
@@ -526,6 +527,7 @@ process gridss_vcf_pp {
 
   label 'low_mem'
   publishDir path: "${params.outDir}/output/sv/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
+  publishDir path: "${params.outDir}/writeup/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
   input:
   tuple val(germlineID), file(vcf), file(tbi) from gridsspp
@@ -579,6 +581,7 @@ process cpsrreport {
 
   publishDir "${params.outDir}/reports", mode: "copy", pattern: "*.html"
   publishDir "${params.outDir}/output/cpsr", mode: "copy", pattern: "*[!.html]"
+  publishDir path: "${params.outDir}/writeup/cpsr", mode: "copy", pattern: "*.html"
 
   input:
   tuple val(sampleID), val(meta), file(vcf), file(tbi) from cpsr_vcf
@@ -736,6 +739,7 @@ process fctcon {
   label 'med_mem'
 
   publishDir "${params.outDir}/output/scna/facets", mode: "copy"
+  publishDir path: "${params.outDir}/writeup/facets", mode: "copy", pattern: "*.[tsv, pdf, xlsx]"
 
   input:
   file(filesn) from facets_consensusing.collect()
@@ -1168,6 +1172,7 @@ process vcfGRa {
   publishDir "${params.outDir}/output/pdf", mode: "copy", pattern: '*.pdf'
   publishDir "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
   publishDir "${params.outDir}/output/data", mode: "copy", pattern: '*[.RData, .tsv]'
+  publishDir path: "${params.outDir}/writeup/snv_indel", mode: "copy", pattern: "*.impacts.master*"
 
   input:
   file(grangesvcfs) from allvcfs
@@ -1231,6 +1236,7 @@ process pcgrreport {
 
   publishDir "${params.outDir}/reports", mode: "copy", pattern: "*html"
   publishDir "${params.outDir}/samples/${sampleID}/pcgr", mode: "copy", pattern: "*[!.html]"
+  publishDir path: "${params.outDir}/writeup/pcgr", mode: "copy", pattern: "*html"
 
   input:
   tuple val(sampleID), file(vcf), val(meta), file(jointsegs), file(ploidpur) from pcgr_inputs
@@ -1364,6 +1370,7 @@ process mltiQC {
 
   label 'low_mem'
   publishDir path: "${params.outDir}/reports", mode: "copy", pattern: "*html"
+  publishDir path: "${params.outDir}/writeup/multiQC", mode: "copy", pattern: "*html"
 
   input:
   file(fastps) from fastp_multiqc.collect()
@@ -1387,6 +1394,7 @@ process somenone_software_vers {
 
   label 'low_mem'
   publishDir "${params.outDir}/../pipeline_info", mode: "copy"
+  publishDir path: "${params.outDir}/writeup/software_vers", mode: "copy", pattern: "*yaml"
 
   output:
   file 'somenone_software_versions.yaml' into ch_somenone_software_vers
