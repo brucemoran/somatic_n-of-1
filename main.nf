@@ -497,7 +497,7 @@ process gridss {
 process gridss_filter {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/sv/gridss", mode: "copy"
+  publishDir path: "${params.outDir}/output/sv/gridss", mode: "copy"
 
   input:
   tuple val(germlineID), file(tumords), file("${params.runID}.output.vcf.gz") from gridssfilter
@@ -525,7 +525,7 @@ process gridss_filter {
 process gridss_vcf_pp {
 
   label 'low_mem'
-  publishDir path: "${params.outDir}/sv/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
+  publishDir path: "${params.outDir}/output/sv/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
   input:
   tuple val(germlineID), file(vcf), file(tbi) from gridsspp
