@@ -448,7 +448,7 @@ gridssing
 process gridss {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/sv/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
+  publishDir path: "${params.outDir}/output/sv/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
 
   input:
   file(listbams) from gridssin
