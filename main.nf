@@ -435,6 +435,11 @@ process haplotypecaller {
   """
 }
 
+//group those outputs
+hc_gt
+  .groupTuple()
+  .map { it -> tuple(it[0], it[1..-1].flatten()) }
+  .set { hc_fm }
 
 /* 2.1.1: GRIDSS SV calling in WGS
 * because we do not know order or number of samples, create tuple with
@@ -548,11 +553,6 @@ process gridss_vcf_pp {
 }
 
 // 2.2: HaplotypeCaller merge
-hc_gt
-  .groupTuple()
-  .map { it -> tuple(it[0], it[1..-1].flatten()) }
-  .set { hc_fm }
-
 process hc_merge {
 
   label 'high_mem'
@@ -1181,7 +1181,6 @@ process vcfGRa {
 
   output:
   file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
-  file('*.master_consensus_all.RData') into rdata_chimaera
   file('*') into completedvcfGRangesConsensus
 
   script:
@@ -1303,7 +1302,7 @@ process pcgrreport {
 //   Rscript -e "somenone::vcf_cn_to_pyclone(mut_rdata = \\"${rdata}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${params.assembly}\\", tag = \\"${params.runID}\\")"
 //   """
 // }
-//
+
 // // 3.5 pyclone-vi run
 // process pyclone_run {
 //
