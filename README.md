@@ -40,4 +40,4 @@ The `meta` column is used for reporting in PCGR, CPSR where `sampleID` may inclu
 
 Headers of `sample.csv` file must match above exactly, and you should have only one germline/normal sample per run.
 
-Column `type` must be `germline` for one sample only. In case of 2+ germline samples, run with each as `germline` in turn, specifying others as `somatic`.
+Column `type` must be `germline` for one sample only. In case of 2+ germline samples, run with each as `germline` in turn specifying others as `somatic`.
