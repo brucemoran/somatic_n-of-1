@@ -46,7 +46,7 @@ dependencies:
   - markdown
   - mosdepth
   - multiqc
-  - octopus=0.7.0
+  - octopus
   - pcgr=0.9.1
   - pcre
   - perl
