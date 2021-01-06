@@ -1249,6 +1249,7 @@ process pcgrreport {
   script:
   grch_vers = "${grchver}".split("\\/")[-1]
   config = params.seqlevel == "exome" ? "${pcgrbase}/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml"
+  assay = params.seqlevel == "exome" ? "WES" : "WGS"
   """
   {
   ##want META to allow spaces, remove non-alphanum
@@ -1277,7 +1278,8 @@ process pcgrreport {
     --estimate_tmb \
     --estimate_msi_status \
     --estimate_signatures \
-    --include_trials
+    --include_trials\
+    --assay ${assay} 
 
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
   """
