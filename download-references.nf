@@ -704,6 +704,9 @@ process hartwigmed {
   file('gridss_blacklist.noChr.bed') into gridss_bl
   file('dbs/gridss/gridss.properties') into gridss_pr
 
+  when:
+  ! params.exomeTag
+
   script:
   if( params.assembly == "GRCh37" )
     """
