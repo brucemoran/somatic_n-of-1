@@ -705,7 +705,7 @@ process hartwigmed {
   file('dbs/gridss/gridss.properties') into gridss_pr
 
   when:
-  ! params.exomeTag
+  !params.exomeTag
 
   script:
   if( params.assembly == "GRCh37" )
