@@ -731,7 +731,6 @@ process hartwigmed {
 
 process cosmic {
 
-  label 'low_mem'
   publishDir "${params.outDir}/cosmic", mode: 'copy'
 
   when:
