@@ -457,7 +457,7 @@ process gnomads {
 process exome_biall {
 
   label 'low_mem'
-  publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", pattern: "![exome.biall.bed, af-only-gnomad.exomerh.hg38.noChr.vcf]"
+  publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", pattern: "!exome.biall.bed, !af-only-gnomad.exomerh.hg38.noChr.vcf"
 
   input:
   file(exomebed) from exome_biallgz
