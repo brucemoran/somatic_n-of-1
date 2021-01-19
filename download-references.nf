@@ -249,7 +249,7 @@ if(params.exomeBedURL){
   process exome_url {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/exome", mode: "copy"
+    publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy"
 
     output:
     tuple file("${params.exomeTag}.url.bed"), file("README.${params.exomeTag}.url.bed") into exome_bed
@@ -287,7 +287,7 @@ if(params.exomeBedFile){
   process exome_file {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/exome", mode: "copy"
+    publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy"
 
     input:
     file(exomeBedFile) from exomebed_file
@@ -348,7 +348,7 @@ process lift_over {
 process exome_bed_pr {
 
   label 'low_mem'
-  publishDir path: "$params.outDir/exome", mode: "copy", pattern: "*[.interval_list,.bed]"
+  publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", pattern: "*[.interval_list,.bed]"
 
   input:
   tuple file(fa), file(fai), file(dict) from fasta_dict_exome
@@ -416,7 +416,7 @@ wgs_tabix.concat(exome_tabix).set { bint_tabix }
 process tabix_files {
 
   label 'low_mem'
-  publishDir path: "$params.outDir/exome", mode: "copy", pattern: "{${params.exomeTag}}*"
+  publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", pattern: "{${params.exomeTag}}*"
   publishDir path: "$params.outDir/wgs", mode: "copy", pattern: "{wgs}*"
 
   input:
@@ -457,7 +457,7 @@ process gnomads {
 process exome_biall {
 
   label 'low_mem'
-  publishDir path: "$params.outDir/exome", mode: "copy"
+  publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", pattern: "![exome.biall.bed, af-only-gnomad.exomerh.hg38.noChr.vcf]"
 
   input:
   file(exomebed) from exome_biallgz
