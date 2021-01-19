@@ -290,7 +290,7 @@ if(params.exomeBedFile){
     publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy"
 
     input:
-    file(exomeBedFile) from exomebed_file
+    file(exome_bed_file) from exomebed_file
 
     output:
     tuple file("${params.exomeTag}.file.bed"), file("README.${params.exomeTag}.file.bed") into exome_bed
@@ -299,20 +299,20 @@ if(params.exomeBedFile){
     """
     ##use file as input
     echo "Exome bed used here is from:" > README.${params.exomeTag}.file.bed
-    echo $exomeBedFile >> README.${params.exomeTag}.file.bed
+    echo ${exome_bed_file} >> README.${params.exomeTag}.file.bed
 
-    if [[ $exomeBedFile =~ bed\$ ]]; then
+    if [[ ${exome_bed_file} =~ bed\$ ]]; then
 
       ##remove any non-chr, coord lines in top of file
-      CHR=\$(tail -n1 $exomeBedFile | perl -ane 'print \$F[0];')
+      CHR=\$(tail -n1 ${exome_bed_file} | perl -ane 'print \$F[0];')
       if [[ \$CHR =~ "chr" ]]; then
-        perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' $exomeBedFile >  ${params.exomeTag}.file.bed
+        perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed_file} >  ${params.exomeTag}.file.bed
       else
-        perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' $exomeBedFile >  ${params.exomeTag}.file.bed
+        perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' ${exome_bed_file} >  ${params.exomeTag}.file.bed
       fi
 
     else
-      echo "BED file $exomeBedFile is not a BED file, please retry"
+      echo "BED file ${exome_bed_file} is not a BED file, please retry"
       exit 147
     fi
     """
