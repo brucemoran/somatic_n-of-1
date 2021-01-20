@@ -395,14 +395,14 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file('*.lift.bed'), file(readme) into exome_bed_liftd
 
     script:
-    def hgTohg = params.assembly == "GRCh38" ? "hg19ToHg38" : "hg38ToHg19"
+    def hgTohg = params.assembly == "GRCh38" ? "hg38ToHg19" : "hg19ToHg38"
     def hg = params.assembly == "GRCh38" ? "hg38" : "hg19"
 
     if( params.assembly == params.exomeAssembly )
       """
       cp ${exome_bed} ${params.exomeTag}.lift.bed
       """
-    else  
+    else
       """
       wget http://hgdownload.cse.ucsc.edu/goldenPath/${hg}/liftOver/${hgTohg}.over.chain.gz
       liftOver ${exome_bed} ${hgTohg}.over.chain.gz ${params.exomeTag}.lift.bed unmapped
@@ -693,6 +693,7 @@ if(!file("$params.outDir/gridss").exists()){
     else
       """
       wget --content-disposition https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC/download?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
+
       unzip GRIDSS-Purple-Linx-Docker.zipGRIDSS-Purple-Linx-Docker.zip
       mv GRIDSS-Purple-Linx-Docker/gpl_ref_data_hg38.gz gpl_ref_data_hg38.tar.gz
       tar -xf gpl_ref_data_hg38.tar.gz
