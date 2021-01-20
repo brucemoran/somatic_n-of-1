@@ -71,7 +71,7 @@ if(!params.exomeTag){
 */
 
 // 1.0: Download GATK4 resource bundle fasta if not extant
-if(!Channel.fromPath("$params.outDir/bwa")){
+if(!Channel.fromPath("$params.outDir/bwa", checkIfExists: true)){
 
   process fasta_gs {
 
