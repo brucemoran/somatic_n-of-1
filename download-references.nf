@@ -71,7 +71,7 @@ if(!params.exomeTag){
 */
 
 // 1.0: Download GATK4 resource bundle fasta if not extant
-if(!Channel.fromPath("$params.outDir/bwa", checkIfExists: true)){
+if(!Channel.fromPath("$params.outDir/bwa")){
 
   process fasta_gs {
 
@@ -188,7 +188,7 @@ if(Channel.fromPath("$params.outDir/bwa", checkIfExists: true)){
 */
 
 // 2.0: Download dbsnp and other GATK4 reference bundle VCFs
-if(!Channel.fromPath("$params.outDir/dbsnp", checkIfExists: true)){
+if(!Channel.fromPath("$params.outDir/dbsnp")){
 
   process vcf_dl {
 
@@ -256,7 +256,7 @@ if(!Channel.fromPath("$params.outDir/dbsnp", checkIfExists: true)){
 
 
 // 2.1: Download gnomad
-if(!Channel.fromPath("$params.outDir/gnomad", checkIfExists: true)){
+if(!Channel.fromPath("$params.outDir/gnomad")){
 
   process gnomad_dl {
 
@@ -302,8 +302,7 @@ if(Channel.fromPath("$params.outDir/gnomad", checkIfExists: true)){
 ================================================================================
 */
 
-// 3.0: Exome BED and liftOver
-if(!Channel.fromPath("$params.outDir/exome/$params.exomeTag", checkIfExists: true)){
+if(!Channel.fromPath("$params.outDir/exome/$params.exomeTag")){
   if(params.exomeBedURL){
     process exome_url {
 
@@ -516,7 +515,7 @@ if(Channel.fromPath("$params.outDir/exome/$params.exomeTag", checkIfExists: true
 ================================================================================
 */
 
-if(!Channel.fromPath("$params.outDir/wgs", checkIfExists: true)){
+if(!Channel.fromPath("$params.outDir/wgs")){
 
   process wgs_bed {
 
@@ -593,7 +592,7 @@ if(!Channel.fromPath("$params.outDir/wgs", checkIfExists: true)){
                           5. PCGR VEP
 ================================================================================
 */
-if(!Channel.fromPath("${params.outDir}/pcgr", checkIfExists: true)){
+if(!Channel.fromPath("${params.outDir}/pcgr")){
   process pcgr_vep {
 
     label 'low_mem'
@@ -655,7 +654,7 @@ if(!Channel.fromPath("${params.outDir}/pcgr", checkIfExists: true)){
 ================================================================================
 */
 
-if(!Channel.fromPath("${params.outDir}/gridss", checkIfExists: true)){
+if(!Channel.fromPath("${params.outDir}/gridss")){
 
   process hartwigmed {
 
@@ -705,7 +704,7 @@ if(!Channel.fromPath("${params.outDir}/gridss", checkIfExists: true)){
 ================================================================================
 */
 
-if(!Channel.fromPath("${params.outDir}/cosmic", checkIfExists: true)){
+if(!Channel.fromPath("${params.outDir}/cosmic")){
 
   process cosmic {
 
@@ -753,119 +752,106 @@ if(!Channel.fromPath("${params.outDir}/cosmic", checkIfExists: true)){
 ================================================================================
 */
 
-// Sequenza GC bias
-process seqnza {
+if(params.legacy){
+  // Sequenza GC bias
+  process seqnza {
 
-  label 'low_mem'
-  publishDir path: "$params.outDir", mode: "copy"
+    label 'low_mem'
+    publishDir path: "$params.outDir", mode: "copy"
 
-  input:
-  set file(fa), file(fai) from fasta_seqza
+    input:
+    set file(fa), file(fai) from fasta_seqza
 
-  output:
-  file('*') into sequenzaout
+    output:
+    file('*') into sequenzaout
 
-  when:
-  params.legacy
+    script:
+    """
+    GENOMEGC50GZ=\$(echo $fa | sed -r 's/.fasta/.gc50Base.txt.gz/')
+    sequenza−utils.py GC-windows −w 50 $fa | gzip > \$GENOMEGC50GZ
+    """
+  }
 
-  script:
-  """
-  GENOMEGC50GZ=\$(echo $fa | sed -r 's/.fasta/.gc50Base.txt.gz/')
-  sequenza−utils.py GC-windows −w 50 $fa | gzip > \$GENOMEGC50GZ
-  """
-}
+  // MSIsensor microsatellites
+  process msisen {
 
-// MSIsensor microsatellites
-process msisen {
+    label 'low_mem'
+    publishDir "$params.outDir", mode: "copy"
 
-  label 'low_mem'
-  publishDir "$params.outDir", mode: "copy"
+    input:
+    set file(fa), file(fai) from fasta_msi
 
-  input:
-  set file(fa), file(fai) from fasta_msi
+    output:
+    file('*') into completedmsisensor
 
-  output:
-  file('*') into completedmsisensor
+    script:
+    """
+    msisensor scan -d $fa -o msisensor_microsatellites.list
+    """
+  }
 
-  when:
-  params.legacy
+  // GenomeSize.xml for Pisces
+  process gensizxml {
 
-  script:
-  """
-  msisensor scan -d $fa -o msisensor_microsatellites.list
-  """
-}
+    label 'low_mem'
+    publishDir "$params.outDir", mode: "copy"
 
-// GenomeSize.xml for Pisces
-process gensizxml {
+    input:
+    set file(fa), file(fai), file(dict) from fasta_dict_gensiz
 
-  label 'low_mem'
-  publishDir "$params.outDir", mode: "copy"
+    output:
+    file('*') into complete_gensiz
 
-  input:
-  set file(fa), file(fai), file(dict) from fasta_dict_gensiz
+    script:
+    """
+    echo "<sequenceSizes genomeName=\"$dict\">" > GenomeSize.xml
+    grep "@SQ" $dict | while read LINE; do
+      CONTIGNAME=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[1]);print \$s[1];' | sed 's/chr//')
+      TOTALBASES=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[2]);print \$s[1];')
+      MD5SUM=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[3]);print \$s[1];')
+      echo -e "\\t<chromosome fileName=\"$fa\" contigName=\"\$CONTIGNAME\" totalBases=\"\$TOTALBASES\" isCircular=\"false\" md5=\"\$MD5SUM\" ploidy=\"2\" knownBases=\"\$TOTALBASES\" type=\"Chromosome\" />" >> GenomeSize.xml
+    done
+    echo "</sequenceSizes>" >> GenomeSize.xml
+    """
+  }
 
-  output:
-  file('*') into complete_gensiz
+  // Dict processing
+  process dict_pr2 {
 
-  when:
-  params.legacy
+    label 'low_mem'
+    publishDir path: "$params.outDir", mode: "copy"
 
-  script:
-  """
-  echo "<sequenceSizes genomeName=\"$dict\">" > GenomeSize.xml
-  grep "@SQ" $dict | while read LINE; do
-    CONTIGNAME=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[1]);print \$s[1];' | sed 's/chr//')
-    TOTALBASES=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[2]);print \$s[1];')
-    MD5SUM=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[3]);print \$s[1];')
-    echo -e "\\t<chromosome fileName=\"$fa\" contigName=\"\$CONTIGNAME\" totalBases=\"\$TOTALBASES\" isCircular=\"false\" md5=\"\$MD5SUM\" ploidy=\"2\" knownBases=\"\$TOTALBASES\" type=\"Chromosome\" />" >> GenomeSize.xml
-  done
-  echo "</sequenceSizes>" >> GenomeSize.xml
-  """
-}
+    input:
+    file(win_dict) from dict_win
 
-// Dict processing
-process dict_pr2 {
+    output:
+    file('*') into complete_dict
 
-  label 'low_mem'
-  publishDir path: "$params.outDir", mode: "copy"
+    script:
+    """
+    perl -ane 'if(\$F[0]=~m/SQ\$/){@sc=split(/:/,\$F[1]);@ss=split(/:/,\$F[2]); if(\$sc[1]!~m/[GLMT]/){ print "\$sc[1]\\t\$ss[1]\\n";}}' $win_dict > seq.dict.chr-size
 
-  input:
-  file(win_dict) from dict_win
+    bedtools makewindows -g seq.dict.chr-size -w 35000000 | perl -ane 'if(\$F[1]==0){\$F[1]++;};print "\$F[0]:\$F[1]-\$F[2]\n";' > 35MB-window.bed
+    """
+  }
 
-  output:
-  file('*') into complete_dict
+  // KG ASCAT loci
+  process ascat_loci {
 
-  when:
-  params.legacy
+    label 'low_mem'
+    publishDir path: "$params.outDir", mode: "copy"
 
-  script:
-  """
-  perl -ane 'if(\$F[0]=~m/SQ\$/){@sc=split(/:/,\$F[1]);@ss=split(/:/,\$F[2]); if(\$sc[1]!~m/[GLMT]/){ print "\$sc[1]\\t\$ss[1]\\n";}}' $win_dict > seq.dict.chr-size
+    input:
+    file(vcf) from ascatloci
 
-  bedtools makewindows -g seq.dict.chr-size -w 35000000 | perl -ane 'if(\$F[1]==0){\$F[1]++;};print "\$F[0]:\$F[1]-\$F[2]\n";' > 35MB-window.bed
-  """
-}
+    output:
+    file('*loci') into complete_ascat
 
-// KG ASCAT loci
-process ascat_loci {
-
-  label 'low_mem'
-  publishDir path: "$params.outDir", mode: "copy"
-
-  input:
-  file(vcf) from ascatloci
-
-  output:
-  file('*loci') into complete_ascat
-
-  when:
-  params.legacy
-
-  script:
-  """
-  LOCIFILE=\$(echo $vcf | sed 's/vcf/maf0.3.loci/')
-  cat $vcf | \
-  perl -ane '@s=split(/[=\\;]/,\$F[7]);if(\$s[3]>0.3){print "\$F[0]\\t\$F[1]\\n";}' > \$LOCIFILE
-  """
+    script:
+    """
+    LOCIFILE=\$(echo $vcf | sed 's/vcf/maf0.3.loci/')
+    cat $vcf | \
+    perl -ane '@s=split(/[=\\;]/,\$F[7]);if(\$s[3]>0.3){print "\$F[0]\\t\$F[1]\\n";}' > \$LOCIFILE
+    """
+  }
 }
