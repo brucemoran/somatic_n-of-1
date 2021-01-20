@@ -11,16 +11,21 @@ def helpMessage() {
   Mandatory arguments:
 
     -profile        [str]     singularity,refs
-    --assembly      [str]     GRCh37 or GRCh38 (default, NB GRCh37 GRIDSS will not  function as resources are unavailable and need to be made by user)
-    --exomeTag      [str]     naming for exome outputs when supplied; tag is then used in somatic_n-of-1 and batch_somatic pipelines to select relevant exome data
+    --assembly      [str]     GRCh37 or GRCh38
+    --exomeTag      [str]     naming for exome outputs when supplied;
+                              tag is then used in somatic_n-of-1 and
+                              batch_somatic pipelines to select relevant exome
+                              data (default: the first element when exome file
+                              name is split on '.')
 
-    and either:
-    --exomeBedURL   [str]     URL to exome bed file for intervals; NB assumes GRCh37
-    or
-    --exomeBedFile  [str]     locally downloaded exome bed file for intervals; NB assumes GRCh37
+    one of:
+    --exomeBedURL   [str]     URL of exome BED file (ZIP or BED)
+    --exomeBedFile  [str]     path to local exome BED file
 
   General Optional Arguments:
 
+    --exomeAssembly [str]     assembly the exome BED file used in it's creation
+                              (default: GRCh37)
     --cosmicUser    [str]     COSMIC login credentials, user email
     --cosmicPass    [str]     COSMIC login credentials, password
     """.stripIndet()
@@ -83,7 +88,7 @@ if(!file("$params.outDir/bwa").exists()){
     tuple val(faval), file('*.fasta.gz') into fasta
 
     script:
-    faval = params.assemblylc == 'grch37' ? 'human_g1k_v37' : 'GRCh38_Verily_v1.genome'
+    def faval = params.assemblylc == 'grch37' ? 'human_g1k_v37' : 'GRCh38_Verily_v1.genome'
     if( params.assemblylc == 'grch37' )
       """
       ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
@@ -390,17 +395,20 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file('*.lift.bed'), file(readme) into exome_bed_liftd
 
     script:
-    if( params.assembly == "GRCh37" )
+
+    if( params.assembly == params.exomeAssembly )
       """
       cp ${exome_bed} ${params.exomeTag}.lift.bed
       """
     else
+      def hgTohg = params.assembly == "GRCh38" ? "hg19ToHg38" : "hg38ToHg19"
+      def hg = params.assembly == "GRCh38" ? "hg38" : "hg19"
       """
-      wget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
-      liftOver ${exome_bed} hg19ToHg38.over.chain.gz ${params.exomeTag}.lift.bed unmapped
+      wget http://hgdownload.cse.ucsc.edu/goldenPath/${hg}/liftOver/${hgTohg}.over.chain.gz
+      liftOver ${exome_bed} ${hgTohg}.over.chain.gz ${params.exomeTag}.lift.bed unmapped
 
-      echo -r"Liftover using:\\nwget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
-      liftOver ${exome_bed} hg19ToHg38.over.chain.gz ${params.exomeTag}.lift.bed unmapped" >> ${readme}
+      echo -r"Liftover using:\\nwget http://hgdownload.cse.ucsc.edu/goldenPath/${hg}/liftOver/${hgTohg}.over.chain.gz
+      liftOver ${exome_bed} ${hgTohg}.over.chain.gz ${params.exomeTag}.lift.bed unmapped" >> ${readme}
       """
   }
 
