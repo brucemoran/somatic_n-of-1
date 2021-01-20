@@ -529,16 +529,15 @@ if(!Channel.fromPath("$params.outDir/wgs", checkIfExists: true)){
     output:
     file('wgs.bed.interval_list') into complete_wgs
     file('wgs.bed') into (wgs_tabix, wgs_fasta_biallgz)
-    tuple file('gs.bed.gz', file('wgs.bed.gz.tbi') into gztbi
-
+    tuple file('gs.bed.gz'), file('wgs.bed.gz.tbi') into gztbi
 
     script:
     """
     ##WGS intervals = 1-LN for each chr
-    grep @SQ $dict | cut -f 2,3 | perl -ane '\$chr=\$F[0];\$chr=~s/SN://;\$end=\$F[1];\$end=~s/LN://;print "\$chr\\t0\\t\$end\\n";' > tmp.wgs.dict.bed
+    grep @SQ ${dict} | cut -f 2,3 | perl -ane '\$chr=\$F[0];\$chr=~s/SN://;\$end=\$F[1];\$end=~s/LN://;print "\$chr\\t0\\t\$end\\n";' > tmp.wgs.dict.bed
 
     ##always make interval list so we are in line with fasta
-    picard BedToIntervalList I=tmp.wgs.dict.bed O=wgs.bed.interval_list SD=$dict
+    picard BedToIntervalList I=tmp.wgs.dict.bed O=wgs.bed.interval_list SD=${dict}
 
     ##output BED
     grep -v "@" wgs.bed.interval_list | cut -f 1,2,3,5 > wgs.bed
