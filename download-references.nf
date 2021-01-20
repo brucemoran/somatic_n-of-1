@@ -159,7 +159,7 @@ if(!Channel.fromPath("$params.outDir/bwa")){
 }
 
 // 1.1: send fasta etc. refs
-if(Channel.fromPath("$params.outDir/bwa", checkIfExists: true)){
+if(Channel.fromPath("$params.outDir/bwa")){
 
   Channel.fromPath("$params.outDir/bwa").set { bwa_chan }
   process send_dict_pr {
@@ -198,10 +198,6 @@ if(!Channel.fromPath("$params.outDir/dbsnp")){
 
     output:
     file('*.vcf') into vcf_tabix
-    file('KG_phase1.snps.high_confidence.*.vcf') into ascatloci
-
-    when:
-    !params.nodbsnp
 
     script:
     if( params.assemblylc == 'grch37' )
@@ -254,7 +250,6 @@ if(!Channel.fromPath("$params.outDir/dbsnp")){
   }
 }
 
-
 // 2.1: Download gnomad
 if(!Channel.fromPath("$params.outDir/gnomad")){
 
@@ -278,8 +273,8 @@ if(!Channel.fromPath("$params.outDir/gnomad")){
   }
 }
 
-// 2.2: or send gnomad
-if(Channel.fromPath("$params.outDir/gnomad", checkIfExists: true)){
+// 2.2: else send gnomad
+if(Channel.fromPath("$params.outDir/gnomad")){
 
   Channel.fromPath("$params.outDir/gnomad").set { gnomad_chan }
   process send_gnomads {
@@ -489,7 +484,7 @@ if(!Channel.fromPath("$params.outDir/exome/$params.exomeTag")){
   }
 }
 
-if(Channel.fromPath("$params.outDir/exome/$params.exomeTag", checkIfExists: true)){
+if(Channel.fromPath("$params.outDir/exome/$params.exomeTag")){
 
   Channel.fromPath("$params.outDir/exome/$params.exomeTag").set { exome_chan }
   process send_pcgrtoml {
