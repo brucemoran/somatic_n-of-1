@@ -415,7 +415,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     output:
     file("${params.exomeTag}.bed.interval_list") into complete_exome
     file("${params.exomeTag}.bed") into ( exome_biallgz, pcgrtoml_exome )
-    tuple file("${params.exomeTag}.bed.gz"), file("${params.exomeTag}.bed.gz.tbi") into gztbi
+    tuple file("${params.exomeTag}.bed.gz"), file("${params.exomeTag}.bed.gz.tbi") into gztbi_exome
 
     script:
     """
@@ -523,7 +523,7 @@ if(!file("$params.outDir/wgs").exists()){
     output:
     file('wgs.bed.interval_list') into complete_wgs
     file('wgs.bed') into (wgs_tabix, wgs_fasta_biallgz)
-    tuple file('gs.bed.gz'), file('wgs.bed.gz.tbi') into gztbi
+    tuple file('gs.bed.gz'), file('wgs.bed.gz.tbi') into gztbi_wgs
 
     script:
     """
