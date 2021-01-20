@@ -319,7 +319,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
       if [[ ${params.exomeBedURL} =~ bed\$ ]]; then
         mv *.bed ${params.exomeTag}.url.bed
       fi
-      if [[ ${params.exomeBedURL} =~ zip\$ || [[ ${params.exomeBedURL} =~ bed\$ ]]; then
+      if [[ ${params.exomeBedURL} =~ zip\$ || ${params.exomeBedURL} =~ bed\$ ]]; then
         echo "No ZIP or BED files resulting from ${params.exomeBedURL}"
         echo "Please try another URL with ZIP or BED file resulting"
         exit 147
@@ -347,7 +347,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
       if [[ ${exome_bed_file} =~ bed\$ ]]; then
         echo "Exome bed used here is from:" > README.${params.exomeTag}.file.bed
         echo ${exome_bed_file} >> README.${params.exomeTag}.file.bed
-        mv $exome_bed_file ${params.exomeTag}.file.bed
+        mv ${exome_bed_file} ${params.exomeTag}.file.bed
       else
         echo "BED file ${exome_bed_file} is not a BED file, please retry"
         exit 147
@@ -369,9 +369,9 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     ##remove any non-chr, coord lines in top of file
     CHR=\$(tail -n1 ${exome_bed_file} | perl -ane 'print \$F[0];')
     if [[ \$CHR =~ "chr" ]]; then
-      perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed_file} > ${params.exomeTag}.url.bed
+      perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed} > ${params.exomeTag}.url.bed
     else
-      perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' ${exome_bed_file} > ${params.exomeTag}.url.bed
+      perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' ${exome_bed} > ${params.exomeTag}.url.bed
     fi
     """
   }
@@ -383,7 +383,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     maxRetries 3
 
     input:
-    tuple file(exomebed), file(readme) from exome_liftover
+    tuple file(exome_bed), file(readme) from exome_liftover
 
     output:
     tuple file('*.lift.bed'), file(readme) into exome_bed_liftd
@@ -391,15 +391,15 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     script:
     if( params.assembly == "GRCh37" )
       """
-      cp ${exomebed} ${params.exomeTag}.lift.bed
+      cp ${exome_bed} ${params.exomeTag}.lift.bed
       """
     else
       """
       wget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
-      liftOver ${exomebed} hg19ToHg38.over.chain.gz ${params.exomeTag}.lift.bed unmapped
+      liftOver ${exome_bed} hg19ToHg38.over.chain.gz ${params.exomeTag}.lift.bed unmapped
 
       echo -r"Liftover using:\\nwget http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz
-      liftOver ${exomebed} hg19ToHg38.over.chain.gz ${params.exomeTag}.lift.bed unmapped" >> ${readme}
+      liftOver ${exome_bed} hg19ToHg38.over.chain.gz ${params.exomeTag}.lift.bed unmapped" >> ${readme}
       """
   }
 
@@ -410,7 +410,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
 
     input:
     tuple file(fa), file(fai), file(dict) from fasta_dict_exome
-    tuple file(exomelift), file(readme) from exome_bed_liftd
+    tuple file(exome_lift), file(readme) from exome_bed_liftd
 
     output:
     file("${params.exomeTag}.bed.interval_list") into complete_exome
@@ -422,7 +422,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     ##must test if all chr in fasta are in exome, else manta cries
     ##must test if all regions are greater than length zero or strelka cries
     ##must test if all seq.dict chrs are in bed and only they or BedToIntervalList cries
-    perl -ane 'if(\$F[1] == \$F[2]){\$F[2]++;} if(\$F[0] !~m/^chrM/){print join("\\t", @F[0..\$#F]) . "\\n";}' ${exomelift} | grep -v chrM | sed 's/chr//g' > tmp.bed
+    perl -ane 'if(\$F[1] == \$F[2]){\$F[2]++;} if(\$F[0] !~m/^chrM/){print join("\\t", @F[0..\$#F]) . "\\n";}' ${exome_lift} | grep -v chrM | sed 's/chr//g' > tmp.bed
 
      grep @SQ ${dict} | cut -f2 | sed 's/SN://' | while read CHR; do
      TESTCHR=\$(awk -v chrs=\$CHR '\$1 == chrs' tmp.bed | wc -l)
@@ -452,7 +452,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", pattern: "!af-only-gnomad.exomerh.hg38.noChr.vcf"
 
     input:
-    file(exomebed) from exome_biallgz
+    file(exome_bed) from exome_biallgz
     file(gnomad) from exome_biall_gnomad
     tuple file(fasta), file(fai) from fasta_exome_biall
 
@@ -462,7 +462,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     script:
     if( params.assembly == "GRCh37" )
       """
-      cut -f 1,2,3 $exomebed > exome.biall.bed
+      cut -f 1,2,3 ${exome_bed} > exome.biall.bed
       bgzip ${gnomad}
       tabix ${gnomad}.gz
       gunzip -c ${gnomad}.gz |
@@ -473,7 +473,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
       """
     else
       """
-      cut -f 1,2,3 $exomebed > exome.biall.bed
+      cut -f 1,2,3 ${exome_bed} > exome.biall.bed
       gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
       tabix af-only-gnomad.hg38.noChr.vcf.gz
       bcftools view -R exome.biall.bed af-only-gnomad.hg38.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.hg38.noChr.vcf
