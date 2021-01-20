@@ -373,7 +373,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     script:
     """
     ##remove any non-chr, coord lines in top of file
-    CHR=\$(tail -n1 ${exome_bed_file} | perl -ane 'print \$F[0];')
+    CHR=\$(tail -n1 ${exome_bed} | perl -ane 'print \$F[0];')
     if [[ \$CHR =~ "chr" ]]; then
       perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed} > ${params.exomeTag}.url.bed
     else
