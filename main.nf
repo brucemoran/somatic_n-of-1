@@ -86,7 +86,9 @@ reference.hc_dbs = Channel.value(file(params.genomes[params.assembly].hc_dbs))
 reference.dbsnp = Channel.value(file(params.genomes[params.assembly].dbsnp))
 reference.gridss = Channel.value(file(params.genomes[params.assembly].gridss))
 reference.pcgrbase = Channel.value(file(params.genomes[params.assembly].pcgr))
-reference.seqlevel = Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}"))
+
+//if seqlevel is exome, there is a dir per exome already parsed according to exomeTag
+reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}")) : Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}/${params.exomeTag}"))
 
 //set cosmic
 reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[params.assembly].cosmic)) : null
@@ -1279,7 +1281,7 @@ process pcgrreport {
     --estimate_msi_status \
     --estimate_signatures \
     --include_trials\
-    --assay ${assay} 
+    --assay ${assay}
 
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
   """
