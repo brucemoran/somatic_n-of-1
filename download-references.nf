@@ -383,7 +383,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     maxRetries 3
 
     input:
-    tuple file(exomebed), file(readme) from exome_bed
+    tuple file(exomebed), file(readme) from exome_liftover
 
     output:
     tuple file('*.lift.bed'), file(readme) into exome_bed_liftd
@@ -391,7 +391,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     script:
     if( params.assembly == "GRCh37" )
       """
-      cp $exomebed ${params.exomeTag}.lift.bed
+      cp ${exomebed} ${params.exomeTag}.lift.bed
       """
     else
       """
