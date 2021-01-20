@@ -395,14 +395,14 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file('*.lift.bed'), file(readme) into exome_bed_liftd
 
     script:
+    def hgTohg = params.assembly == "GRCh38" ? "hg19ToHg38" : "hg38ToHg19"
+    def hg = params.assembly == "GRCh38" ? "hg38" : "hg19"
 
     if( params.assembly == params.exomeAssembly )
       """
       cp ${exome_bed} ${params.exomeTag}.lift.bed
       """
-    else
-      def hgTohg = params.assembly == "GRCh38" ? "hg19ToHg38" : "hg38ToHg19"
-      def hg = params.assembly == "GRCh38" ? "hg38" : "hg19"
+    else  
       """
       wget http://hgdownload.cse.ucsc.edu/goldenPath/${hg}/liftOver/${hgTohg}.over.chain.gz
       liftOver ${exome_bed} ${hgTohg}.over.chain.gz ${params.exomeTag}.lift.bed unmapped
