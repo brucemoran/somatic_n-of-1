@@ -71,7 +71,7 @@ if(!params.exomeTag){
 */
 
 // 1.0: Download GATK4 resource bundle fasta if not extant
-if(!Channel.fromPath("$params.outDir/bwa", checkIfExists: true)){
+if(!file("$params.outDir/bwa").exists()){
 
   process fasta_gs {
 
@@ -159,7 +159,7 @@ if(!Channel.fromPath("$params.outDir/bwa", checkIfExists: true)){
 }
 
 // 1.1: send fasta etc. refs
-if(Channel.fromPath("$params.outDir/bwa")){
+if(file("$params.outDir/bwa").exists()){
 
   Channel.fromPath("$params.outDir/bwa").set { bwa_chan }
   process send_dict_pr {
@@ -188,7 +188,7 @@ if(Channel.fromPath("$params.outDir/bwa")){
 */
 
 // 2.0: Download dbsnp and other GATK4 reference bundle VCFs
-if(!Channel.fromPath("$params.outDir/dbsnp")){
+if(!file("$params.outDir/dbsnp").exists()){
 
   process vcf_dl {
 
@@ -251,7 +251,7 @@ if(!Channel.fromPath("$params.outDir/dbsnp")){
 }
 
 // 2.1: Download gnomad
-if(!Channel.fromPath("$params.outDir/gnomad")){
+if(!file("$params.outDir/gnomad").exists()){
 
   process gnomad_dl {
 
@@ -274,7 +274,7 @@ if(!Channel.fromPath("$params.outDir/gnomad")){
 }
 
 // 2.2: else send gnomad
-if(Channel.fromPath("$params.outDir/gnomad")){
+if(file("$params.outDir/gnomad").exists()){
 
   Channel.fromPath("$params.outDir/gnomad").set { gnomad_chan }
   process send_gnomads {
@@ -297,7 +297,7 @@ if(Channel.fromPath("$params.outDir/gnomad")){
 ================================================================================
 */
 
-if(!Channel.fromPath("$params.outDir/exome/$params.exomeTag")){
+if(!file("$params.outDir/exome/$params.exomeTag").exists()){
   if(params.exomeBedURL){
     process exome_url {
 
@@ -484,7 +484,7 @@ if(!Channel.fromPath("$params.outDir/exome/$params.exomeTag")){
   }
 }
 
-if(Channel.fromPath("$params.outDir/exome/$params.exomeTag")){
+if(file("$params.outDir/exome/$params.exomeTag").exists()){
 
   Channel.fromPath("$params.outDir/exome/$params.exomeTag").set { exome_chan }
   process send_pcgrtoml {
@@ -510,7 +510,7 @@ if(Channel.fromPath("$params.outDir/exome/$params.exomeTag")){
 ================================================================================
 */
 
-if(!Channel.fromPath("$params.outDir/wgs")){
+if(!file("$params.outDir/wgs").exists()){
 
   process wgs_bed {
 
@@ -587,7 +587,7 @@ if(!Channel.fromPath("$params.outDir/wgs")){
                           5. PCGR VEP
 ================================================================================
 */
-if(!Channel.fromPath("${params.outDir}/pcgr")){
+if(!file("$params.outDir/pcgr").exists()){
   process pcgr_vep {
 
     label 'low_mem'
@@ -649,7 +649,7 @@ if(!Channel.fromPath("${params.outDir}/pcgr")){
 ================================================================================
 */
 
-if(!Channel.fromPath("${params.outDir}/gridss")){
+if(!file("$params.outDir/gridss").exists()){
 
   process hartwigmed {
 
@@ -699,7 +699,7 @@ if(!Channel.fromPath("${params.outDir}/gridss")){
 ================================================================================
 */
 
-if(!Channel.fromPath("${params.outDir}/cosmic")){
+if(!file("$params.outDir/cosmic").exists()){
 
   process cosmic {
 
