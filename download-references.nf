@@ -392,7 +392,7 @@ if(!Channel.fromPath("$params.outDir/exome/$params.exomeTag", checkIfExists: tru
     tuple file(exomebed), file(readme) from exome_bed
 
     output:
-    file('*.lift.bed'), file(readme) into exome_bed_liftd
+    tuple file('*.lift.bed'), file(readme) into exome_bed_liftd
 
     script:
     if( params.assembly == "GRCh37" )
