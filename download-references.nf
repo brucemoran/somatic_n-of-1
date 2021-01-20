@@ -339,7 +339,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
       file(exome_bed_file) from exomebed_file
 
       output:
-      tuple file("${params.exomeTag}.bed"), file("README.${params.exomeTag}.file.bed") into exome_parse_bed
+      tuple file("${params.exomeTag}.file.bed"), file("README.${params.exomeTag}.file.bed") into exome_parse_bed
 
       script:
       """
@@ -362,16 +362,16 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file(exome_bed), file(readme) from exome_parse_bed
 
     output:
-    tuple file("${params.exomeTag}.bed"), file(readme) into exome_liftover
+    tuple file("${params.exomeTag}.url.bed"), file(readme) into exome_liftover
 
     script:
     """
     ##remove any non-chr, coord lines in top of file
     CHR=\$(tail -n1 ${exome_bed_file} | perl -ane 'print \$F[0];')
     if [[ \$CHR =~ "chr" ]]; then
-      perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed_file} > ${params.exomeTag}.bed
+      perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed_file} > ${params.exomeTag}.url.bed
     else
-      perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' ${exome_bed_file} > ${params.exomeTag}.bed
+      perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' ${exome_bed_file} > ${params.exomeTag}.url.bed
     fi
     """
   }
