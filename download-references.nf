@@ -263,13 +263,14 @@ if(!file("$params.outDir/gnomad").exists()){
 
     script:
     if( params.assembly == "GRCh37" )
-    """
-    gsutil -q cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
-    """
+      """
+      gsutil -q cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
+
+      """
     else
-    """
-    gsutil -q cp gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz ./
-    """
+      """
+      gsutil -q cp gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz ./
+      """
   }
 }
 
@@ -283,7 +284,7 @@ if(file("$params.outDir/gnomad").exists()){
     file(gnomad_dir) from gnomad_chan
 
     output:
-    file('af-only-gnomad.*') into ( exome_biall_gnomad, wgs_biall_gnomad )
+    file('gnomad/af-only-gnomad.*') into ( exome_biall_gnomad, wgs_biall_gnomad )
 
     script:
     """
@@ -523,7 +524,7 @@ if(!file("$params.outDir/wgs").exists()){
     output:
     file('wgs.bed.interval_list') into complete_wgs
     file('wgs.bed') into (wgs_tabix, wgs_fasta_biallgz)
-    tuple file('gs.bed.gz'), file('wgs.bed.gz.tbi') into gztbi_wgs
+    tuple file('wgs.bed.gz'), file('wgs.bed.gz.tbi') into gztbi_wgs
 
     script:
     """
