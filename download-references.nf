@@ -679,10 +679,10 @@ if(!file("$params.outDir/gridss").exists()){
       """
       wget --content-disposition https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC/download?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
 
-      unzip GRIDSS-Purple-Linx-Docker.zipGRIDSS-Purple-Linx-Docker.zip
+      unzip GRIDSS-Purple-Linx-Docker.zip
       mv GRIDSS-Purple-Linx-Docker/gpl_ref_data_hg37.gz gpl_ref_data_hg37.tar.gz
       tar -xf gpl_ref_data_hg37.tar.gz
-      rm -rf GRIDSS-Purple-Linx-Docker.zipGRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg37.tar.gz
+      rm -rf GRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg37.tar.gz
 
       ##blacklist
       sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
@@ -694,10 +694,10 @@ if(!file("$params.outDir/gridss").exists()){
       """
       wget --content-disposition https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC/download?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
 
-      unzip GRIDSS-Purple-Linx-Docker.zipGRIDSS-Purple-Linx-Docker.zip
+      unzip GRIDSS-Purple-Linx-Docker.zip
       mv GRIDSS-Purple-Linx-Docker/gpl_ref_data_hg38.gz gpl_ref_data_hg38.tar.gz
       tar -xf gpl_ref_data_hg38.tar.gz
-      rm -rf GRIDSS-Purple-Linx-Docker.zipGRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg38.tar.gz
+      rm -rf GRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg38.tar.gz
 
       ##blacklist
       sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
