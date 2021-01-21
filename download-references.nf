@@ -327,7 +327,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
       if [[ ${params.exomeBedURL} =~ bed\$ ]]; then
         mv *.bed ${params.exomeTag}.url.bed
       fi
-      if [[ ! ${params.exomeBedURL} =~ zip\$ || ! ${params.exomeBedURL} =~ bed\$ ]]; then
+      if [[ ! ${params.exomeBedURL} =~ zip\$ || ${params.exomeBedURL} =~ bed\$ ]]; then
         echo "No ZIP or BED files resulting from ${params.exomeBedURL}"
         echo "Please try another URL with ZIP or BED file resulting"
         exit 147
