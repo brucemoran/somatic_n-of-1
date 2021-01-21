@@ -177,7 +177,7 @@ if(file("$params.outDir/bwa").exists()){
 
     output:
     file('**.dict') into dict_win
-    tuple file('**.fa'), file('**.fai'), file('**.dict') into (fasta_dict_exome, fasta_dict_wgs, fasta_dict_gensiz, fasta_dict_gridss)
+    tuple file('**noChr.fasta'), file('**.fai'), file('**.dict') into (fasta_dict_exome, fasta_dict_wgs, fasta_dict_gensiz, fasta_dict_gridss)
     tuple file('**.noChr.fasta'), file('**.noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall)
 
     script:
