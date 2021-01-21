@@ -679,56 +679,57 @@ if(!file("$params.outDir/pcgr").exists()){
                           6. HARTWIG MEDICAL (GRIDSS)
 ================================================================================
 */
-fai_gridss.subscribe(println{"$it"})
+fai_gridss.into{ fai_gridss_1; fai_gridss_2 }
+fai_gridss_1.subscribe{println "$it"}
 
-// if(!file("$params.outDir/gridss").exists()){
-//
-//   process hartwigmed {
-//
-//     label 'low_mem'
-//     publishDir path: "$params.outDir/gridss", mode: "copy"
-//
-//     input:
-//     file(fai) from fai_gridss_2
-//
-//     output:
-//     file('dbs') into gridss_db
-//     file('refgenomes/human_virus') into gridss_hv
-//     file('gridss_blacklist.noChr.bed') into gridss_bl
-//     file('dbs/gridss/gridss.properties') into gridss_pr
-//
-//     script:
-//     if( params.assembly == "GRCh37" )
-//       """
-//       wget --content-disposition https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC/download?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
-//
-//       unzip GRIDSS-Purple-Linx-Docker.zip
-//       mv GRIDSS-Purple-Linx-Docker/gpl_ref_data_hg37.gz gpl_ref_data_hg37.tar.gz
-//       tar -xf gpl_ref_data_hg37.tar.gz
-//       rm -rf GRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg37.tar.gz
-//
-//       ##blacklist
-//       sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
-//
-//       perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
-//       mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
-//       """
-//     else
-//       """
-//       wget --content-disposition https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC/download?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
-//
-//       unzip GRIDSS-Purple-Linx-Docker.zip
-//       mv GRIDSS-Purple-Linx-Docker/gpl_ref_data_hg38.gz gpl_ref_data_hg38.tar.gz
-//       tar -xf gpl_ref_data_hg38.tar.gz
-//       rm -rf GRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg38.tar.gz
-//
-//       ##blacklist
-//       sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
-//       perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
-//       mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
-//       """
-//   }
-// }
+if(!file("$params.outDir/gridss").exists()){
+
+  process hartwigmed {
+
+    label 'low_mem'
+    publishDir path: "$params.outDir/gridss", mode: "copy"
+
+    input:
+    file(fai) from fai_gridss_2
+
+    output:
+    file('dbs') into gridss_db
+    file('refgenomes/human_virus') into gridss_hv
+    file('gridss_blacklist.noChr.bed') into gridss_bl
+    file('dbs/gridss/gridss.properties') into gridss_pr
+
+    script:
+    if( params.assembly == "GRCh37" )
+      """
+      wget --content-disposition https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC/download?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
+
+      unzip GRIDSS-Purple-Linx-Docker.zip
+      mv GRIDSS-Purple-Linx-Docker/gpl_ref_data_hg37.gz gpl_ref_data_hg37.tar.gz
+      tar -xf gpl_ref_data_hg37.tar.gz
+      rm -rf GRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg37.tar.gz
+
+      ##blacklist
+      sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
+
+      perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
+      mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
+      """
+    else
+      """
+      wget --content-disposition https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC/download?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
+
+      unzip GRIDSS-Purple-Linx-Docker.zip
+      mv GRIDSS-Purple-Linx-Docker/gpl_ref_data_hg38.gz gpl_ref_data_hg38.tar.gz
+      tar -xf gpl_ref_data_hg38.tar.gz
+      rm -rf GRIDSS-Purple-Linx-Docker.zip GRIDSS-Purple-Linx-Docker gpl_ref_data_hg38.tar.gz
+
+      ##blacklist
+      sed 's/chr//g' dbs/gridss/ENCFF001TDO.bed > gridss_blacklist.noChr.bed
+      perl ${workflow.projectDir}/bin/exact_match_by_col.pl ${fai},0 gridss_blacklist.noChr.bed,0 > gridss_blacklist.noChr.1.bed
+      mv gridss_blacklist.noChr.1.bed gridss_blacklist.noChr.bed
+      """
+  }
+}
 
 /*
 ================================================================================
