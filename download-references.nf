@@ -496,7 +496,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
 if(file("$params.outDir/exome/$params.exomeTag").exists()){
 
   Channel.fromPath("$params.outDir/exome/$params.exomeTag").set { exome_chan }
-  process send_pcgrtoml {
+  process send_pcgrtoml_exome {
 
     label 'low_mem'
 
@@ -588,6 +588,26 @@ if(!file("$params.outDir/wgs").exists()){
       bgzip af-only-gnomad.wgs.hg38.noChr.vcf
       tabix af-only-gnomad.wgs.hg38.noChr.vcf.gz
       """
+  }
+}
+
+if(file("$params.outDir/wgs").exists()){
+
+  Channel.fromPath("$params.outDir/wgs").set { wgs_chan }
+  process send_pcgrtoml_wgs {
+
+    label 'low_mem'
+
+    input:
+    file(wgs_dir) from wgs_chan
+
+    output:
+    file('wgs.biall.bed') into pcgrtoml_wgs
+
+    script:
+    """
+    cut -f 1,2,3 wgs/wgs.bed > wgs.biall.bed
+    """
   }
 }
 
