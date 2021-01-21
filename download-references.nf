@@ -322,7 +322,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
 
       wget ${params.exomeBedURL}
       if [[ ${params.exomeBedURL} =~ zip\$ ]]; then
-        unzip -p *.zip > ${params.exomeTag}.url.bed
+        7za x -so *.zip  > ${params.exomeTag}.url.bed
       fi
       if [[ ${params.exomeBedURL} =~ bed\$ ]]; then
         mv *.bed ${params.exomeTag}.url.bed
