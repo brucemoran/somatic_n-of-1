@@ -172,7 +172,6 @@ if(file("$params.outDir/bwa").exists()){
   process send_dict_pr {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/bwa", mode: "copy"
 
     input:
     file(bwa_dir) from bwa_chan
@@ -680,7 +679,9 @@ if(!file("$params.outDir/pcgr").exists()){
                           6. HARTWIG MEDICAL (GRIDSS)
 ================================================================================
 */
-
+fai_gridss
+  .into{ fai_gridss_1; fai_gridss_2 }
+fai_gridss_1.subscribe(println{it})
 if(!file("$params.outDir/gridss").exists()){
 
   process hartwigmed {
@@ -689,7 +690,7 @@ if(!file("$params.outDir/gridss").exists()){
     publishDir path: "$params.outDir/gridss", mode: "copy"
 
     input:
-    file(fai) from fai_gridss
+    file(fai) from fai_gridss_2
 
     output:
     file('dbs') into gridss_db
