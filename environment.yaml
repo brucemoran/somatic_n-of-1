@@ -47,6 +47,7 @@ dependencies:
   - mosdepth
   - multiqc
   - octopus
+  - p7zip
   - pcgr
   - pcre
   - perl
