@@ -370,16 +370,16 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file(exome_bed), file(readme) from exome_parse_bed
 
     output:
-    tuple file("${params.exomeTag}.url.bed"), file(readme) into exome_liftover
+    tuple file("${params.exomeTag}.lo.bed"), file(readme) into exome_liftover
 
     script:
     """
     ##remove any non-chr, coord lines in top of file
     CHR=\$(tail -n1 ${exome_bed} | perl -ane 'print \$F[0];')
     if [[ \$CHR =~ "chr" ]]; then
-      perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed} > ${params.exomeTag}.url.bed
+      perl -ane 'if(\$F[0]=~m/^chr/){print \$_;}' ${exome_bed} > ${params.exomeTag}.lo.bed
     else
-      perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' ${exome_bed} > ${params.exomeTag}.url.bed
+      perl -ane 'if(\$F[0]=~m/^[0-9MXY]/){print \$_;}' ${exome_bed} > ${params.exomeTag}.lo.bed
     fi
     """
   }
@@ -394,7 +394,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file(exome_bed), file(readme) from exome_liftover
 
     output:
-    tuple file('*.lift.bed'), file(readme) into exome_bed_liftd
+    tuple file("${params.exomeTag}.lift.bed"), file(readme) into exome_bed_liftd
 
     script:
     def hgTohg = params.exomeAssembly == "GRCh38" ? "hg38ToHg19" : "hg19ToHg38"
