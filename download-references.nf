@@ -88,7 +88,7 @@ if(!file("$params.outDir/bwa").exists()){
     tuple val(faval), file('*.fasta.gz') into fasta
 
     script:
-    faval = params.assemblylc == 'grch37' ? 'human_g1k_v37' : 'GRCh38_Verily_v1.genome'
+    def faval = params.assemblylc == 'grch37' ? 'human_g1k_v37' : 'GRCh38_Verily_v1.genome'
     if( params.assemblylc == 'grch37' )
       """
       ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
@@ -133,14 +133,16 @@ if(!file("$params.outDir/bwa").exists()){
     tuple file(fa), file(fai) from fasta_dict
 
     output:
-    file('*.dict') into dict_win
-    tuple file(fa), file(fai), file('*.dict') into (fasta_dict_exome, fasta_dict_wgs, fasta_dict_gensiz, fasta_dict_gridss)
+    file(dict) into dict_win
+    tuple file(fa), file(fai), file(dict) into ( fasta_dict_exome, fasta_dict_wgs, fasta_dict_gensiz )
+    file(fai) into fai_gridss
 
+    script:
+    def dict = "${fa}".replace('fasta', 'dict')
     """
-    DICTO=\$(echo $fa | sed 's/fasta/dict/')
     picard CreateSequenceDictionary \
-      R=$fa \
-      O=\$DICTO
+      R=${fa} \
+      O=${dict}
     """
   }
 
@@ -177,8 +179,9 @@ if(file("$params.outDir/bwa").exists()){
 
     output:
     file('**.dict') into dict_win
-    tuple file('**noChr.fasta'), file('**.fai'), file('**.dict') into (fasta_dict_exome, fasta_dict_wgs, fasta_dict_gensiz, fasta_dict_gridss)
+    tuple file('**noChr.fasta'), file('**.fai'), file('**.dict') into (fasta_dict_exome, fasta_dict_wgs, fasta_dict_gensiz)
     tuple file('**.noChr.fasta'), file('**.noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall)
+    file('**.noChr.fasta.fai') into fai_gridss
 
     script:
     """
@@ -686,7 +689,7 @@ if(!file("$params.outDir/gridss").exists()){
     publishDir path: "$params.outDir/gridss", mode: "copy"
 
     input:
-    tuple file(fa), file(fai), file(dict) from fasta_dict_gridss
+    file(fai) from fai_gridss
 
     output:
     file('dbs') into gridss_db
