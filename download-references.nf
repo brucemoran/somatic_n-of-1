@@ -468,7 +468,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file(fasta), file(fai) from fasta_exome_biall
 
     output:
-    tuple file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz.tbi") into exome_biallelicgz
+    tuple file("af-only-gnomad.${params.exomeTag}.*.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.*.noChr.vcf.gz.tbi") into exome_biallelicgz
 
     script:
     def hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
@@ -489,7 +489,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
       gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
       tabix af-only-gnomad.${hg}.noChr.vcf.gz
       bcftools view -R exome.biall.bed af-only-gnomad.${hg}.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.${hg}.noChr.vcf
-      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.${hg}.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf
+      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.${hg}.noChr.vcf ${fai} > af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf
       bgzip af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf
       tabix af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz
       """
