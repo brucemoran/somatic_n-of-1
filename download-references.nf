@@ -460,7 +460,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
   process exome_biall {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", pattern: "!af-only-gnomad.exomerh.hg38.noChr.vcf"
+    publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy"
 
     input:
     file(exome_bed) from exome_biallgz
@@ -468,29 +468,30 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file(fasta), file(fai) from fasta_exome_biall
 
     output:
-    tuple file("af-only-gnomad.${params.exomeTag}.hg*.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.hg*.noChr.vcf.gz.tbi") into exome_biallelicgz
+    tuple file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz.tbi") into exome_biallelicgz
 
     script:
+    def hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
     if( params.assembly == "GRCh37" )
       """
       cut -f 1,2,3 ${exome_bed} > exome.biall.bed
       bgzip ${gnomad}
       tabix ${gnomad}.gz
       gunzip -c ${gnomad}.gz |
-      bcftools view -R exome.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.hg19.noChr.vcf
-      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.hg19.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf
-      bgzip af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf
-      tabix af-only-gnomad.${params.exomeTag}.hg19.noChr.vcf.gz
+      bcftools view -R exome.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.${hg}.noChr.vcf
+      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.hg19.noChr.vcf ${fai} > af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf
+      bgzip af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf
+      tabix af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz
       """
     else
       """
       cut -f 1,2,3 ${exome_bed} > exome.biall.bed
-      gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
-      tabix af-only-gnomad.hg38.noChr.vcf.gz
-      bcftools view -R exome.biall.bed af-only-gnomad.hg38.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.hg38.noChr.vcf
-      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.hg38.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.hg38.noChr.vcf
-      bgzip af-only-gnomad.${params.exomeTag}.hg38.noChr.vcf
-      tabix af-only-gnomad.${params.exomeTag}.hg38.noChr.vcf.gz
+      gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
+      tabix af-only-gnomad.${hg}.noChr.vcf.gz
+      bcftools view -R exome.biall.bed af-only-gnomad.${hg}.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.exomerh.${hg}.noChr.vcf
+      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.exomerh.${hg}.noChr.vcf $fai > af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf
+      bgzip af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf
+      tabix af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz
       """
   }
 }
