@@ -25,7 +25,7 @@ def helpMessage() {
     --seqLevel      [str]       WGS or exome (default: WGS)
     --exomeTag      [str]       Tag used for exome kit when running download-references.nf
     --cosmic        [bool]      set this to specify output of COSMIC CGC genes only (somatic only; based on download and supply of CGC file in download_references.nf)
-    """.stripIndet()
+    """.stripIndent()
 }
 
 if (params.help) exit 0, helpMessage()
