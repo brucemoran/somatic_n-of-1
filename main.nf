@@ -228,7 +228,6 @@ process cram {
 
   label 'low_mem'
   publishDir path: "${params.outDir}/samples/${sampleID}/bwa", mode: "copy", pattern: "*.cra*"
-  publishDir path: "${params.outDir}/writeup/crams", mode: "copy", pattern: "*.cra*"
 
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from cramming
@@ -456,7 +455,7 @@ gridssing
 process gridss {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/output/sv/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
+  publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
 
   input:
   file(listbams) from gridssin
@@ -505,7 +504,7 @@ process gridss {
 process gridss_filter {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/output/sv/gridss", mode: "copy"
+  publishDir path: "${params.outDir}/combined/gridss", mode: "copy"
 
   input:
   tuple val(germlineID), file(tumords), file("${params.runID}.output.vcf.gz") from gridssfilter
@@ -533,8 +532,7 @@ process gridss_filter {
 process gridss_vcf_pp {
 
   label 'low_mem'
-  publishDir path: "${params.outDir}/output/sv/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
-  publishDir path: "${params.outDir}/writeup/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
+  publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
   input:
   tuple val(germlineID), file(vcf), file(tbi) from gridsspp
@@ -558,7 +556,7 @@ process gridss_vcf_pp {
 process hc_merge {
 
   label 'high_mem'
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf.*'
+  publishDir path: "${params.outDir}/samples/${sampleID}/haplotypecaller", mode: "copy", pattern: '*.vcf.*'
 
   input:
   tuple val(sampleID), file(rawvcfs) from hc_fm
@@ -581,9 +579,8 @@ process cpsrreport {
 
   label 'med_mem'
 
-  publishDir "${params.outDir}/reports", mode: "copy", pattern: "*.html"
-  publishDir "${params.outDir}/output/cpsr", mode: "copy", pattern: "*[!.html]"
-  publishDir path: "${params.outDir}/writeup/cpsr", mode: "copy", pattern: "*.html"
+  publishDir "${params.outDir}/reports/cpsr", mode: "copy", pattern: "*.html"
+  publishDir "${params.outDir}/samples/${sampleID}/cpsr", mode: "copy", pattern: "*[!.html]"
 
   input:
   tuple val(sampleID), val(meta), file(vcf), file(tbi) from cpsr_vcf
@@ -740,8 +737,7 @@ process fctcon {
 
   label 'med_mem'
 
-  publishDir "${params.outDir}/output/scna/facets", mode: "copy"
-  publishDir path: "${params.outDir}/writeup/facets", mode: "copy", pattern: "*.[tsv, pdf, xlsx]"
+  publishDir "${params.outDir}/combined/facets", mode: "copy"
 
   input:
   file(filesn) from facets_consensusing.collect()
@@ -894,8 +890,6 @@ process mutct2_contam_filter {
   label 'med_mem'
 
   publishDir path: "${params.outDir}/samples/${sampleID}/mutect2", mode: "copy", overwrite: true
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*raw.vcf', overwrite: true
-  publishDir path: "${params.outDir}/samples/", mode: "copy", pattern: '*issue.table', overwrite: true
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai), file(mergevcf), file(statsvcf), file(readorient) from mutect2_contam_merge
@@ -960,7 +954,6 @@ process mntstr {
   label 'high_mem'
 
   publishDir path: "${params.outDir}/samples/${sampleID}/manta-strelka2", mode: "copy"
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*[.strelka2.snv_indel.raw.vcf, .strelka2.snv_indel.pass.vcf]'
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mantastrelka2ing
@@ -1076,8 +1069,7 @@ process lancet_filter {
 
   label 'med_mem'
 
-  publishDir path: "${params.outDir}/samples/$sampleID/lancet", mode: "copy"
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*raw.vcf'
+  publishDir path: "${params.outDir}/samples/${sampleID}/lancet", mode: "copy"
 
   input:
   tuple val(sampleID), file(mergevcf) from lancet_merge
@@ -1111,7 +1103,9 @@ process vepann {
 
   label 'med_mem'
 
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
+  publishDir path: "${params.outDir}/samples/${sampleID}/lancet", mode: "copy", pattern: "${sampleID}.lancet.snv_indel.pass.vep.vcf"
+  publishDir path: "${params.outDir}/samples/${sampleID}/mutect2", mode: "copy", pattern: "${sampleID}.mutect2.snv_indel.pass.vep.vcf"
+  publishDir path: "${params.outDir}/samples/${sampleID}/manta-strelka2", mode: "copy", pattern: "${sampleID}.strelka2.snv_indel.pass.vep.vcf"
 
   input:
   each file(vcf) from ALLVCFS
@@ -1171,10 +1165,7 @@ process vcfGRa {
 
   label 'max_mem'
 
-  publishDir "${params.outDir}/output/pdf", mode: "copy", pattern: '*.pdf'
-  publishDir "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
-  publishDir "${params.outDir}/output/data", mode: "copy", pattern: '*[.RData, .tsv]'
-  publishDir path: "${params.outDir}/writeup/snv_indel", mode: "copy", pattern: "*.impacts.master*"
+  publishDir "${params.outDir}/combined/variant_consensus", mode: "copy"
 
   input:
   file(grangesvcfs) from allvcfs
@@ -1235,9 +1226,8 @@ process pcgrreport {
   errorStrategy 'retry'
   maxRetries 3
 
-  publishDir "${params.outDir}/reports", mode: "copy", pattern: "*html"
+  publishDir "${params.outDir}/reports/pcgr", mode: "copy", pattern: "*html"
   publishDir "${params.outDir}/samples/${sampleID}/pcgr", mode: "copy", pattern: "*[!.html]"
-  publishDir path: "${params.outDir}/writeup/pcgr", mode: "copy", pattern: "*html"
 
   input:
   tuple val(sampleID), file(vcf), val(meta), file(jointsegs), file(ploidpur) from pcgr_inputs
@@ -1287,82 +1277,6 @@ process pcgrreport {
   """
 }
 
-// // 3.4 pyclone setup
-// process pyclone_setup {
-//
-//   label 'med_mem'
-//
-//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
-//
-//   input:
-//   file(rdata) from rdata_pyclone
-//   tuple file(facets), file(purity) from facets_pyclone.collect()
-//
-//   output:
-//   file('*.mutation_CN.pyclone.tsv') into pyclone_tsv
-//
-//   script:
-//   """
-//   Rscript -e "somenone::vcf_cn_to_pyclone(mut_rdata = \\"${rdata}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${params.assembly}\\", tag = \\"${params.runID}\\")"
-//   """
-// }
-
-// // 3.5 pyclone-vi run
-// process pyclone_run {
-//
-//   label 'med_mem'
-//
-//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
-//
-//   input:
-//   file(pyc_input) from pyclone_tsv
-//
-//   output:
-//   file("${params.runID}.mutation_CN.pyclonevi.tsv") into completed_pyclone_setup
-//
-//   script:
-//   """
-//   pyclone-vi fit \
-//     -i ${pyc_input} \
-//     -o ${params.runID}.pyclone-vi-fit.h5 \
-//     -c 10 \
-//     -d beta-binomial \
-//     -r 100
-//
-//   pyclone-vi write-results-file \
-//     -i ${params.runID}.pyclone-vi-fit.h5 \
-//     -o ${params.runID}.pyclone-vi-fit.tsv
-//   """
-// }
-//
-// // 3.6 clonevol run
-// process clonevol_run {
-//
-//   label 'med_mem'
-//
-//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
-//
-//   input:
-//   file(pyc_input) from pyclone_tsv
-//
-//   output:
-//   file("${params.runID}.mutation_CN.pyclonevi.tsv") into completed_pyclone_setup
-//
-//   script:
-//   """
-//   pyclone-vi fit \
-//     -i ${pyc_input} \
-//     -o ${params.runID}.pyclone-vi-fit.h5 \
-//     -c 40 \
-//     -d beta-binomial \
-//     -r 10
-//
-//   pyclone-vi write-results-file \
-//     -i ${params.runID}.pyclone-vi-fit.h5 \
-//     -o ${params.runID}.pyclone-vi-fit.tsv
-//   """
-// }
-
 /*
 ================================================================================
                           4.  MULTIQC AND CLOSEOUT
@@ -1372,8 +1286,7 @@ process pcgrreport {
 process mltiQC {
 
   label 'low_mem'
-  publishDir path: "${params.outDir}/reports", mode: "copy", pattern: "*html"
-  publishDir path: "${params.outDir}/writeup/multiQC", mode: "copy", pattern: "*html"
+  publishDir path: "${params.outDir}/reports/multiQC", mode: "copy"
 
   input:
   file(fastps) from fastp_multiqc.collect()
@@ -1396,8 +1309,8 @@ process mltiQC {
 process somenone_software_vers {
 
   label 'low_mem'
-  publishDir "${params.baseDir}/pipeline_info", mode: 'copy'
-  publishDir path: "${params.outDir}/writeup/software_vers", mode: "copy", pattern: "*yaml"
+  publishDir "pipeline_info", mode: 'copy'
+  publishDir path: "${params.outDir}/reports/software_vers", mode: "copy"
 
   output:
   file 'somenone_software_versions.yaml' into ch_somenone_software_vers
@@ -1408,24 +1321,24 @@ process somenone_software_vers {
   """
 }
 
-// 4.1.2: gridss software version numbers
-// //out of use as using Docker from GRIDSS now
-// process gridss_software_vers {
-//
-//   label 'low_mem'
-//   publishDir "${params.outDir}/pipeline_info", mode: 'copy'
-//
-//   output:
-//   file 'gridss_software_versions.txt' into ch_gridss_software_vers
-//
-//   when:
-//   params.seqlevel == "wgs" && params.assembly == "GRCh37"
-//
-//   script:
-//   """
-//   ls -l /opt/gridss > gridss_software_versions.txt
-//   """
-// }
+//4.1.2: gridss software version numbers
+//out of use as using Docker from GRIDSS now
+process gridss_software_vers {
+
+  label 'low_mem'
+  publishDir "${params.outDir}/pipeline_info", mode: 'copy'
+
+  output:
+  file 'gridss_software_versions.txt' into ch_gridss_software_vers
+
+  when:
+  params.seqlevel == "wgs"
+
+  script:
+  """
+  ls -l /opt/gridss > gridss_software_versions.txt
+  """
+}
 
 // 4.19: ZIP for sending on sendmail
 sendmail_pcgr.mix(sendmail_multiqc).set { sendmail_all }
