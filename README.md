@@ -7,14 +7,21 @@
 Run the included `download-references.nf`
 ```
 nextflow run brucemoran/somatic_n-of-1/download-references.nf \
-  -profile singularity \
-  --outDir <PATH> \
-  --assembly <"GRCh37" or "GRCh38"> \
-  --exomeBedURL <URL of exome BED file>
-  OR
-  --exomeBedFile <PATH to exome BED file>
+  -profile        [str]     singularity,refs
+  --assembly      [str]     GRCh37 or GRCh38
+  --exomeTag      [str]     naming for exome/panel outputs when supplied; tag is then used in somatic_n-of-1 and batch_somatic main.nf pipelines to select relevant exome reference data
+
+  one of:
+  --exomeBedURL   [str]     URL to exome bed file for intervals
+  --exomeBedFile  [str]     locally downloaded exome bed file for intervals
+
+General Optional Arguments:
+
+  --exomeAssembly [str]     
+  --cosmicUser    [str]     COSMIC login credentials, user email
+  --cosmicPass    [str]     COSMIC login credentials, password
 ```
-NB that exome bed files should be GRCh37 even if using `--assembly "GRCh38"` because Illumina exome BEDs are all GRCh37.
+NB that exome bed files should be GRCh37 even if using `--assembly "GRCh38"` because Illumina exome BEDs are all GRCh37 from what I have seen.
 ### Somatic-Germline n-of-1 Pipeline
 #### About the pipeline:
 This pipeline was developed to analyse and report on clinical cancer research. To this end we have tried to make a useful and clinician-readable output. This has been achieved largely on the back of [PCGR](https://github.com/sigven/pcgr)/[CPSR](https://github.com/sigven/cpsr) which provide really excellent HTML reports and annotation from multiple clinically relevant sources.
