@@ -243,7 +243,8 @@ if(!file("$params.outDir/dbsnp").exists()){
 
     label 'low_mem'
     publishDir path: "$params.outDir/hc_dbs", mode: "copy", pattern: "{KG,Mills,hapmap}*"
-    publishDir path: "$params.outDir/dbsnp", mode: "copy", pattern: "{dbsnp}*"
+    publishDir path: "$params.outDir/dbsnp", mode: "copy", pattern: "dbsnp*"
+
     input:
     file(tbtbx) from vcf_tabix.flatten()
 
