@@ -1270,7 +1270,7 @@ process pcgrreport {
     --estimate_tmb \
     --estimate_msi_status \
     --estimate_signatures \
-    --include_trials\
+    --include_trials \
     --assay ${assay}
 
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
