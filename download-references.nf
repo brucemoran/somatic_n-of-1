@@ -26,6 +26,7 @@ def helpMessage() {
 
     --exomeAssembly [str]     assembly the exome BED file used in it's creation
                               (default: GRCh37)
+    --localPCGRdata [str]     local copy of PCGR data bundle to use
     --cosmicUser    [str]     COSMIC login credentials, user email
     --cosmicPass    [str]     COSMIC login credentials, password
     """.stripIndet()
@@ -622,6 +623,30 @@ if(file("$params.outDir/wgs").exists()){
 ================================================================================
 */
 if(!file("$params.outDir/pcgr").exists()){
+
+  if(params.localPCGRdata){
+    Channel.fromPath("${params.localPCGRdata}").set{ pcgr_data }
+  }
+
+  if(!params.localPCGRdata){
+    process pcgr_data {
+
+      label 'low_mem'
+      errorStrategy 'retry'
+      maxRetries 3
+
+      output:
+      file("*tgz") into pcgr_data
+
+      script:
+      downloadURL = params.assembly == "GRCh37" ? "${params.pcgrURL37}" : "${params.pcgrURL38}"
+      """
+      wget ${downloadURL}
+      """
+    }
+  }
+
+  //use data
   process pcgr_vep {
 
     label 'low_mem'
@@ -632,17 +657,15 @@ if(!file("$params.outDir/pcgr").exists()){
     input:
     file(exomebed) from pcgrtoml_exome
     file(wgsbed) from pcgrtoml_wgs
+    file(tgz) from pcgr_data
 
     output:
     file('data') into pcgrdata
 
     script:
-    downloadURL = params.assembly == "GRCh37" ? "${params.pcgrURL37}" : "${params.pcgrURL38}"
     exometag = params.exomeTag == null ? "" : "${params.exomeTag}"
     """
-    wget ${downloadURL}
-    tar -xf *.tgz
-    rm -rf *.tgz
+    tar -xf ${tgz} -C ./
 
     ##allows editting of TOML for WGS and exome if supplied
     sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
