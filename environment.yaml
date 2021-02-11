@@ -37,7 +37,7 @@ dependencies:
   - bwa
   - bzip2
   - cairo
-  - cpsr
+  - cpsr=v0.6.1
   - ensembl-vep
   - fastp
   - fastqc
@@ -48,7 +48,7 @@ dependencies:
   - multiqc
   - octopus
   - p7zip
-  - pcgr
+  - pcgr=v0.9.1
   - pcre
   - perl
   - picard
