@@ -82,7 +82,7 @@ dependencies:
   - r-rmarkdown
   - r-rpart
   - r-shiny
-  - r-stringi
+  - r-stringi=1.5.3
   - r-stringr
   - r-survival
   - r-testthat
