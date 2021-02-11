@@ -7,6 +7,7 @@ channels:
   - defaults
 dependencies:
   - ascat
+  - bam-readcount
   - bbmap
   - bcftools
   - bedtools
@@ -36,8 +37,7 @@ dependencies:
   - bwa
   - bzip2
   - cairo
-  - cpsr=0.6.1
-  - cyvcf2=0.20.9
+  - cpsr
   - ensembl-vep
   - fastp
   - fastqc
@@ -48,12 +48,12 @@ dependencies:
   - multiqc
   - octopus
   - p7zip
-  - pcgr=0.9.1
+  - pcgr
   - pcre
   - perl
   - picard
   - pisces
-  - r-base=4.0.3
+  - r-base
   - r-bedr
   - r-biocmanager
   - r-circlize
@@ -82,7 +82,7 @@ dependencies:
   - r-rmarkdown
   - r-rpart
   - r-shiny
-  - r-stringi=1.5.3
+  - r-stringi
   - r-stringr
   - r-survival
   - r-testthat
