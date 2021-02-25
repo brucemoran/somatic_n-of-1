@@ -1340,6 +1340,23 @@ process gridss_software_vers {
   """
 }
 
+//4.1.3: pcgr software version numbers
+//out of use as using Docker from pcgr now
+process pcgr_software_vers {
+
+  label 'low_mem'
+  publishDir "${params.outDir}/pipeline_info", mode: 'copy'
+
+  output:
+  file 'pcgr_software_versions.txt' into ch_pcgr_software_vers
+
+
+  script:
+  """
+  pcgr.py --version > pcgr_software_versions.txt
+  cpsr.py --version >> pcgr_software_versions.txt
+  """
+}
 // 4.19: ZIP for sending on sendmail
 sendmail_pcgr.mix(sendmail_multiqc).set { sendmail_all }
 
