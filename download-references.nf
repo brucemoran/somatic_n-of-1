@@ -128,7 +128,7 @@ if(!file("$params.outDir/bwa").exists()){
   process dict_pr {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/bwa", mode: "copy"
+    publishDir path: "${params.outDir}/bwa", mode: "copy"
 
     input:
     tuple file(fa), file(fai) from fasta_dict
@@ -150,7 +150,7 @@ if(!file("$params.outDir/bwa").exists()){
   process bwa_index {
 
     label 'med_mem'
-    publishDir path: "$params.outDir/bwa", mode: "copy"
+    publishDir path: "${params.outDir}/bwa", mode: "copy"
 
     input:
     tuple file(fa), file(fai) from fasta_bwa
@@ -161,7 +161,7 @@ if(!file("$params.outDir/bwa").exists()){
     script:
     """
     ##https://gatkforums.broadinstitute.org/gatk/discussion/2798/howto-prepare-a-reference-for-use-with-bwa-and-gatk
-    bwa index -a bwtsw $fa
+    bwa index -a bwtsw ${fa}
     """
   }
 }
@@ -169,7 +169,7 @@ if(!file("$params.outDir/bwa").exists()){
 // 1.1: send fasta etc. refs
 if(file("$params.outDir/bwa").exists()){
 
-  Channel.fromPath("$params.outDir/bwa").set { bwa_chan }
+  Channel.fromPath("${params.outDir}/bwa").set { bwa_chan }
   process send_dict_pr {
 
     label 'low_mem'
@@ -242,8 +242,8 @@ if(!file("$params.outDir/dbsnp").exists()){
   process index_feature_files {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/hc_dbs", mode: "copy", pattern: "{KG,Mills,hapmap}*"
-    publishDir path: "$params.outDir/dbsnp", mode: "copy", pattern: "dbsnp*"
+    publishDir path: "${params.outDir}/hc_dbs", mode: "copy", pattern: "{KG,Mills,hapmap}*"
+    publishDir path: "${params.outDir}/dbsnp", mode: "copy", pattern: "dbsnp*"
 
     input:
     file(tbtbx) from vcf_tabix.flatten()
@@ -253,8 +253,8 @@ if(!file("$params.outDir/dbsnp").exists()){
 
     script:
     """
-    bgzip $tbtbx
-    gatk IndexFeatureFile --input $tbtbx".gz"
+    bgzip ${tbtbx}
+    gatk IndexFeatureFile --input ${tbtbx}".gz"
     """
   }
 }
@@ -265,7 +265,7 @@ if(!file("$params.outDir/gnomad").exists()){
   process gnomad_dl {
 
     label 'gs'
-    publishDir path: "$params.outDir/gnomad", mode: "copy"
+    publishDir path: "${params.outDir}/gnomad", mode: "copy"
 
     output:
     file('af-only-gnomad.*') into ( exome_biall_gnomad, wgs_biall_gnomad )
@@ -286,7 +286,7 @@ if(!file("$params.outDir/gnomad").exists()){
 // 2.2: else send gnomad
 if(file("$params.outDir/gnomad").exists()){
 
-  Channel.fromPath("$params.outDir/gnomad").set { gnomad_chan }
+  Channel.fromPath("${params.outDir}/gnomad").set { gnomad_chan }
   process send_gnomads {
 
     input:
@@ -343,7 +343,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     process exome_file {
 
       label 'low_mem'
-      publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy"
+      publishDir path: "${params.outDir}/exome/${params.exomeTag}", mode: "copy"
 
       input:
       file(exome_bed_file) from exomebed_file
@@ -419,7 +419,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
   process exome_bed_pr {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy", overwrite: "true"
+    publishDir path: "${params.outDir}/exome/${params.exomeTag}", mode: "copy", overwrite: "true"
 
     input:
     tuple file(fa), file(fai), file(dict) from fasta_dict_exome
@@ -462,7 +462,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
   process exome_biall {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/exome/$params.exomeTag", mode: "copy"
+    publishDir path: "${params.outDir}/exome/${params.exomeTag}", mode: "copy"
 
     input:
     file(exome_bed) from exome_biallgz
@@ -500,7 +500,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
 
 if(file("$params.outDir/exome/$params.exomeTag").exists()){
   if(!file("$params.outDir/pcgr").exists()){
-    Channel.fromPath("$params.outDir/exome/$params.exomeTag").set { exome_chan }
+    Channel.fromPath("${params.outDir}/exome/${params.exomeTag}").set { exome_chan }
     process send_pcgrtoml_exome {
 
       label 'low_mem'
@@ -530,7 +530,7 @@ if(!file("$params.outDir/wgs").exists()){
   process wgs_bed {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/wgs", mode: "copy"
+    publishDir path: "${params.outDir}/wgs", mode: "copy"
 
     input:
     tuple file(fa), file(fai), file(dict) from fasta_dict_wgs
@@ -560,7 +560,7 @@ if(!file("$params.outDir/wgs").exists()){
   process wgs_biall {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/wgs", mode: "copy", pattern: "!af-only-gnomad.wgsh.hg19.noChr.vcf"
+    publishDir path: "${params.outDir}/wgs", mode: "copy", pattern: "!af-only-gnomad.wgsh*"
     errorStrategy 'retry'
     maxRetries 3
 
@@ -580,7 +580,7 @@ if(!file("$params.outDir/wgs").exists()){
       bgzip ${gnomad}
       tabix ${gnomad}.gz
       bcftools view -R wgs.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg19.noChr.vcf
-      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg19.noChr.vcf $fai > af-only-gnomad.wgs.hg19.noChr.vcf
+      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg19.noChr.vcf ${fai} > af-only-gnomad.wgs.hg19.noChr.vcf
       bgzip af-only-gnomad.wgs.hg19.noChr.vcf
       tabix af-only-gnomad.wgs.hg19.noChr.vcf.gz
       """
@@ -590,7 +590,7 @@ if(!file("$params.outDir/wgs").exists()){
       gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
       tabix af-only-gnomad.hg38.noChr.vcf.gz
       bcftools view -R wgs.biall.bed af-only-gnomad.hg38.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg38.noChr.vcf
-      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg38.noChr.vcf $fai > af-only-gnomad.wgs.hg38.noChr.vcf
+      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg38.noChr.vcf ${fai} > af-only-gnomad.wgs.hg38.noChr.vcf
       bgzip af-only-gnomad.wgs.hg38.noChr.vcf
       tabix af-only-gnomad.wgs.hg38.noChr.vcf.gz
       """
@@ -651,7 +651,7 @@ if(!file("$params.outDir/pcgr").exists()){
   process pcgr_vep {
 
     label 'low_mem'
-    publishDir "$params.outDir/pcgr", mode: "copy", pattern: "data"
+    publishDir "${params.outDir}/pcgr", mode: "copy", pattern: "data"
     errorStrategy 'retry'
     maxRetries 3
 
@@ -712,7 +712,7 @@ if(!file("$params.outDir/gridss").exists()){
   process hartwigmed {
 
     label 'low_mem'
-    publishDir path: "$params.outDir/gridss", mode: "copy"
+    publishDir path: "${params.outDir}/gridss", mode: "copy"
 
     input:
     file(fai) from fai_gridss
@@ -815,7 +815,7 @@ if(params.legacy){
   process seqnza {
 
     label 'low_mem'
-    publishDir path: "$params.outDir", mode: "copy"
+    publishDir path: "${params.outDir}", mode: "copy"
 
     input:
     set file(fa), file(fai) from fasta_seqza
@@ -825,8 +825,8 @@ if(params.legacy){
 
     script:
     """
-    GENOMEGC50GZ=\$(echo $fa | sed -r 's/.fasta/.gc50Base.txt.gz/')
-    sequenza−utils.py GC-windows −w 50 $fa | gzip > \$GENOMEGC50GZ
+    GENOMEGC50GZ=\$(echo ${fa} | sed -r 's/.fasta/.gc50Base.txt.gz/')
+    sequenza−utils.py GC-windows −w 50 ${fa} | gzip > \$GENOMEGC50GZ
     """
   }
 
@@ -834,7 +834,7 @@ if(params.legacy){
   process msisen {
 
     label 'low_mem'
-    publishDir "$params.outDir", mode: "copy"
+    publishDir "${params.outDir}", mode: "copy"
 
     input:
     set file(fa), file(fai) from fasta_msi
@@ -852,7 +852,7 @@ if(params.legacy){
   process gensizxml {
 
     label 'low_mem'
-    publishDir "$params.outDir", mode: "copy"
+    publishDir "${params.outDir}", mode: "copy"
 
     input:
     set file(fa), file(fai), file(dict) from fasta_dict_gensiz
@@ -862,12 +862,12 @@ if(params.legacy){
 
     script:
     """
-    echo "<sequenceSizes genomeName=\"$dict\">" > GenomeSize.xml
-    grep "@SQ" $dict | while read LINE; do
+    echo "<sequenceSizes genomeName=\"${dict}\">" > GenomeSize.xml
+    grep "@SQ" ${dict} | while read LINE; do
       CONTIGNAME=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[1]);print \$s[1];' | sed 's/chr//')
       TOTALBASES=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[2]);print \$s[1];')
       MD5SUM=\$(echo \$LINE | perl -ane '@s=split(/:/,\$F[3]);print \$s[1];')
-      echo -e "\\t<chromosome fileName=\"$fa\" contigName=\"\$CONTIGNAME\" totalBases=\"\$TOTALBASES\" isCircular=\"false\" md5=\"\$MD5SUM\" ploidy=\"2\" knownBases=\"\$TOTALBASES\" type=\"Chromosome\" />" >> GenomeSize.xml
+      echo -e "\\t<chromosome fileName=\"${fa}\" contigName=\"\$CONTIGNAME\" totalBases=\"\$TOTALBASES\" isCircular=\"false\" md5=\"\$MD5SUM\" ploidy=\"2\" knownBases=\"\$TOTALBASES\" type=\"Chromosome\" />" >> GenomeSize.xml
     done
     echo "</sequenceSizes>" >> GenomeSize.xml
     """
@@ -877,7 +877,7 @@ if(params.legacy){
   process dict_pr2 {
 
     label 'low_mem'
-    publishDir path: "$params.outDir", mode: "copy"
+    publishDir path: "${params.outDir}", mode: "copy"
 
     input:
     file(win_dict) from dict_win
@@ -887,7 +887,7 @@ if(params.legacy){
 
     script:
     """
-    perl -ane 'if(\$F[0]=~m/SQ\$/){@sc=split(/:/,\$F[1]);@ss=split(/:/,\$F[2]); if(\$sc[1]!~m/[GLMT]/){ print "\$sc[1]\\t\$ss[1]\\n";}}' $win_dict > seq.dict.chr-size
+    perl -ane 'if(\$F[0]=~m/SQ\$/){@sc=split(/:/,\$F[1]);@ss=split(/:/,\$F[2]); if(\$sc[1]!~m/[GLMT]/){ print "\$sc[1]\\t\$ss[1]\\n";}}' ${win_dict} > seq.dict.chr-size
 
     bedtools makewindows -g seq.dict.chr-size -w 35000000 | perl -ane 'if(\$F[1]==0){\$F[1]++;};print "\$F[0]:\$F[1]-\$F[2]\n";' > 35MB-window.bed
     """
@@ -897,7 +897,7 @@ if(params.legacy){
   process ascat_loci {
 
     label 'low_mem'
-    publishDir path: "$params.outDir", mode: "copy"
+    publishDir path: "${params.outDir}", mode: "copy"
 
     input:
     file(vcf) from ascatloci
@@ -907,8 +907,8 @@ if(params.legacy){
 
     script:
     """
-    LOCIFILE=\$(echo $vcf | sed 's/vcf/maf0.3.loci/')
-    cat $vcf | \
+    LOCIFILE=\$(echo ${vcf} | sed 's/vcf/maf0.3.loci/')
+    cat ${vcf} | \
     perl -ane '@s=split(/[=\\;]/,\$F[7]);if(\$s[3]>0.3){print "\$F[0]\\t\$F[1]\\n";}' > \$LOCIFILE
     """
   }
