@@ -581,6 +581,7 @@ if(!file("$params.outDir/wgs").exists()){
       tabix ${gnomad}.gz
       bcftools view -R wgs.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg19.noChr.vcf
       perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg19.noChr.vcf ${fai} > af-only-gnomad.wgs.hg19.noChr.vcf
+      rm af-only-gnomad.wgsh.hg19.noChr.vcf ${gnomad}.gz ${gnomad}.gz.tbi
       bgzip af-only-gnomad.wgs.hg19.noChr.vcf
       tabix af-only-gnomad.wgs.hg19.noChr.vcf.gz
       """
@@ -591,6 +592,7 @@ if(!file("$params.outDir/wgs").exists()){
       tabix af-only-gnomad.hg38.noChr.vcf.gz
       bcftools view -R wgs.biall.bed af-only-gnomad.hg38.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg38.noChr.vcf
       perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg38.noChr.vcf ${fai} > af-only-gnomad.wgs.hg38.noChr.vcf
+      rm af-only-gnomad.wgsh.hg38.noChr.vcf ${gnomad}.gz ${gnomad}.gz.tbi
       bgzip af-only-gnomad.wgs.hg38.noChr.vcf
       tabix af-only-gnomad.wgs.hg38.noChr.vcf.gz
       """
