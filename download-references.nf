@@ -274,7 +274,8 @@ if(!file("$params.outDir/gnomad").exists()){
     if( params.assembly == "GRCh37" )
       """
       gsutil -q cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
-
+      bgzip af-only-gnomad.raw.sites.vcf
+      tabix af-only-gnomad.raw.sites.vcf.gz
       """
     else
       """
@@ -470,10 +471,10 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     tuple file(fasta), file(fai) from fasta_exome_biall
 
     output:
-    tuple file("af-only-gnomad.${params.exomeTag}.*.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.*.noChr.vcf.gz.tbi") into exome_biallelicgz
+    tuple file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz.tbi") into exome_biallelicgz
 
     script:
-    def hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
+    hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
     if( params.assembly == "GRCh37" )
       """
       cut -f 1,2,3 ${exome_bed} > exome.biall.bed
@@ -570,32 +571,21 @@ if(!file("$params.outDir/wgs").exists()){
     tuple file(fasta), file(fai) from fasta_wgs_biall
 
     output:
-    tuple file('af-only-gnomad.wgs.*.noChr.vcf.gz'), file('af-only-gnomad.wgs.*.noChr.vcf.gz.tbi') into wgs_biallelicgz
+    tuple file("af-only-gnomad.wgs.${hg}.noChr.vcf.gz"), file("af-only-gnomad.wgs.${hg}.noChr.vcf.gz.tbi") into wgs_biallelicgz
     file('wgs.biall.bed') into pcgrtoml_wgs
 
     script:
-    if( params.assembly == "GRCh37" )
-      """
-      cut -f 1,2,3 ${wgsbed} > wgs.biall.bed
-      bgzip ${gnomad}
-      tabix ${gnomad}.gz
-      bcftools view -R wgs.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg19.noChr.vcf
-      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg19.noChr.vcf ${fai} > af-only-gnomad.wgs.hg19.noChr.vcf
-      rm af-only-gnomad.wgsh.hg19.noChr.vcf ${gnomad}.gz ${gnomad}.gz.tbi
-      bgzip af-only-gnomad.wgs.hg19.noChr.vcf
-      tabix af-only-gnomad.wgs.hg19.noChr.vcf.gz
-      """
-    else
-      """
-      cut -f 1,2,3 $wgsbed > wgs.biall.bed
-      gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.hg38.noChr.vcf.gz
-      tabix af-only-gnomad.hg38.noChr.vcf.gz
-      bcftools view -R wgs.biall.bed af-only-gnomad.hg38.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.hg38.noChr.vcf
-      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.hg38.noChr.vcf ${fai} > af-only-gnomad.wgs.hg38.noChr.vcf
-      rm af-only-gnomad.wgsh.hg38.noChr.vcf ${gnomad} ${gnomad}.tbi
-      bgzip af-only-gnomad.wgs.hg38.noChr.vcf
-      tabix af-only-gnomad.wgs.hg38.noChr.vcf.gz
-      """
+    hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
+    """
+    cut -f 1,2,3 ${wgsbed} > wgs.biall.bed
+    gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
+    tabix af-only-gnomad.${hg}.noChr.vcf.gz
+
+    bcftools view -R wgs.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.${hg}.noChr.vcf
+    perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.${hg}.noChr.vcf ${fai} > af-only-gnomad.wgs.${hg}.noChr.vcf
+    bgzip af-only-gnomad.wgs.${hg}.noChr.vcf
+    tabix af-only-gnomad.wgs.${hg}.noChr.vcf.gz
+    """
   }
 }
 
