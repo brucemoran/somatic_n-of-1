@@ -561,7 +561,7 @@ if(!file("$params.outDir/wgs").exists()){
   process wgs_biall {
 
     label 'low_mem'
-    publishDir path: "${params.outDir}/wgs", mode: "copy", pattern: "!af-only-gnomad.wgsh*"
+    publishDir path: "${params.outDir}/wgs", mode: "copy"
     errorStrategy 'retry'
     maxRetries 3
 
