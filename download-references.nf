@@ -567,7 +567,7 @@ if(!file("$params.outDir/wgs").exists()){
 
     input:
     file(wgsbed) from wgs_fasta_biallgz
-    file(gnomad) from wgs_biall_gnomad
+    file(gnomadgz) from wgs_biall_gnomad
     tuple file(fasta), file(fai) from fasta_wgs_biall
 
     output:
@@ -578,10 +578,10 @@ if(!file("$params.outDir/wgs").exists()){
     hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
     """
     cut -f 1,2,3 ${wgsbed} > wgs.biall.bed
-    gunzip -c ${gnomad} | sed 's/chr//' | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
+    gunzip -c ${gnomadgz} | sed 's/chr//' | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
     tabix af-only-gnomad.${hg}.noChr.vcf.gz
 
-    bcftools view -R wgs.biall.bed ${gnomad}.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.${hg}.noChr.vcf
+    bcftools view -R wgs.biall.bed af-only-gnomad.${hg}.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.${hg}.noChr.vcf
     perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.${hg}.noChr.vcf ${fai} > af-only-gnomad.wgs.${hg}.noChr.vcf
     bgzip af-only-gnomad.wgs.${hg}.noChr.vcf
     tabix af-only-gnomad.wgs.${hg}.noChr.vcf.gz
