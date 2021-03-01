@@ -912,7 +912,7 @@ process mutct2_contam_filter {
   gatk ${taskmem} \
     GetPileupSummaries \
     -I ${tumourbam} \
-    -V \$(echo ${gpsgz}) \
+    -V ${gpsgz} \
     -O ${sampleID}".getpileupsummaries.table" \
     -L ${intlist}
 
