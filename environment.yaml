@@ -57,6 +57,7 @@ dependencies:
   - r-circlize
   - r-dbplyr
   - r-deconstructsigs
+  - r-devtools
   - r-dt
   - r-facets
   - r-forcats
