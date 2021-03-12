@@ -1120,8 +1120,8 @@ process vepann {
   script:
   def grch_vers = "${grchver}".split("\\/")[-1]
   def vcf_anno = "${vcf}".replaceAll(".vcf", ".vep.vcf")
-  sampleID = "${vcf}".split(".")[0]
-  caller = "${vcf}".split(".")[1]
+  sampleID = "${vcf}".split("\\.")[0]
+  caller = "${vcf}".split("\\.")[1]
   """
   vep --dir_cache ${pcgrbase}/data/${grch_vers}/.vep \
     --offline \
