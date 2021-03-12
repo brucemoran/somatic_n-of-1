@@ -1104,9 +1104,7 @@ process vepann {
 
   label 'med_mem'
 
-  publishDir path: "${params.outDir}/samples/${sampleID}/lancet", mode: "copy", pattern: "${sampleID}.lancet.snv_indel.pass.vep.vcf"
-  publishDir path: "${params.outDir}/samples/${sampleID}/mutect2", mode: "copy", pattern: "${sampleID}.mutect2.snv_indel.pass.vep.vcf"
-  publishDir path: "${params.outDir}/samples/${sampleID}/manta-strelka2", mode: "copy", pattern: "${sampleID}.strelka2.snv_indel.pass.vep.vcf"
+  publishDir path: "${params.outDir}/samples/${sampleID}/${caller}", mode: "copy", pattern: "${sampleID}.${caller}.snv_indel.pass.vep.vcf"
 
   input:
   each file(vcf) from ALLVCFS
@@ -1122,6 +1120,8 @@ process vepann {
   script:
   def grch_vers = "${grchver}".split("\\/")[-1]
   def vcf_anno = "${vcf}".replaceAll(".vcf", ".vep.vcf")
+  sampleID = "${vcf}".split(".")[0]
+  caller = "${vcf}".split(".")[1]
   """
   vep --dir_cache ${pcgrbase}/data/${grch_vers}/.vep \
     --offline \
