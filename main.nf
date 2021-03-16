@@ -1372,7 +1372,7 @@ process pairtree_run {
   """
   cut -f 1,2,4,5,6 ${pairtree_psm} > ${params.runID}.pairtree.ssm
 
-  clustervars --method pairwise \
+  clustervars --model pairwise \
               ${params.runID}.pairtree.ssm \
               ${pairtree_json} \
               ${params.runID}.out_params_fn.json
@@ -1382,7 +1382,7 @@ process pairtree_run {
            ${params.runID}.res.npz
 
   plottree ${params.runID}.pairtree.ssm \
-           ${params.runID}.pairtree.json \
+           ${params.runID}.out_params_fn.json \
            ${params.runID}.res.npz \
            ${params.runID}.pairtree.results.html
   """
