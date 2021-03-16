@@ -1324,7 +1324,7 @@ process pairtree_setup {
   file(cna_master) from pairtree_facet
 
   output:
-  tuple file("${params.runID}.mutation_CN.pyclone.tsv"), file("${params.runID}.pairtree.psm") into pyclone_in
+  tuple file("${params.runID}.pairtree.psm"), file("${params.runID}.in_params_fn.json") into pairtree_in
 
   script:
   def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
@@ -1334,26 +1334,26 @@ process pairtree_setup {
 }
 
 //3.42
-process pyclonevi {
-
-  label 'low_mem'
-
-  publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
-
-  input:
-  tuple file(pyclone_input), file(pairtree_psm) from pyclone_in
-
-  output:
-  tuple file("${params.runID}.pyclone.results.tsv"), file("${pairtree.psm}") into pyclone_res
-
-  script:
-  """
-  pyclone-vi fit -i ${pyclone_input} \
-                 -o ${params.runID}.pyclonevi.output.tsv
-  pyclone-vi write-results-file -i ${params.runID}.pyclonevi.output.tsv \
-                                -o ${params.runID}.pyclone.results.tsv
-  """
-}
+// process pyclonevi {
+//
+//   label 'low_mem'
+//
+//   publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+//
+//   input:
+//   tuple file(pyclone_input), file(pairtree_psm) from pyclone_in
+//
+//   output:
+//   tuple file("${params.runID}.pyclone.results.tsv"), file("${pairtree.psm}") into pyclone_res
+//
+//   script:
+//   """
+//   pyclone-vi fit -i ${pyclone_input} \
+//                  -o ${params.runID}.pyclonevi.output.tsv
+//   pyclone-vi write-results-file -i ${params.runID}.pyclonevi.output.tsv \
+//                                 -o ${params.runID}.pyclone.results.tsv
+//   """
+// }
 
 //3.42
 process pairtree_run {
@@ -1363,18 +1363,28 @@ process pairtree_run {
   publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
 
   input:
-  tuple file(pyclone_res), file(pairtree_psm) from pyclone_res
+  tuple file(pairtree_psm), file(pairtree_json) from pairtree_in
 
   output:
   file('*') into pairtree_res
 
   script:
   """
-  Rscript -e "somenone::make_pairtree_json(pyclone_res = \\"${pyclone_res}\\", pairtree_psm = \\"${pairtree_psm}\\", tag = \\"${params.runID}\\")"
+  cut -f 1,2,4,5,6 ${pairtree_psm} > ${params.runID}.pairtree.ssm
 
-  pairtree --params ${params.runID}.pairtree.json ${params.runID}.pairtree.ssm ${params.runID}.res.npz
+  clustervars --method pairwise \
+              ${params.runID}.pairtree.ssm \
+              ${pairtree_json} \
+              ${params.runID}.out_params_fn.json
 
-  plottree ${params.runID}.pairtree.ssm ${params.runID}.pairtree.json ${params.runID}.res.npz ${params.runID}.pairtree.results.html
+  pairtree --params ${params.runID}.out_params_fn.json \
+           ${params.runID}.pairtree.ssm \
+           ${params.runID}.res.npz
+
+  plottree ${params.runID}.pairtree.ssm \
+           ${params.runID}.pairtree.json \
+           ${params.runID}.res.npz \
+           ${params.runID}.pairtree.results.html
   """
 }
 /*
