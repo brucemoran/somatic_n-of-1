@@ -10,21 +10,52 @@ def helpMessage() {
   nextflow run brucemoran/somatic_n-of-1
 
   Mandatory arguments:
-    -profile        [str]       Configuration profile (required: standard,singularity)
-    --sampleCsv     [file]      CSV format, headers: type (either "germline" or "somatic"),sampleID,meta,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz; use meta for naming in PCGR, CPSR reports
+
+    -profile        [str]       Configuration profile
+                                (required: standard,singularity)
+
+    --sampleCsv     [file]      CSV format, headers: type (either "germline" or
+                                "somatic"), sampleID, meta,
+                                /path/to/read1.fastq.gz,/path/to/read2.fastq.gz;
+                                use meta for naming in PCGR, CPSR reports
+
     --runID         [str]       Name for run, used to tag outputs
-    --refDir        [file]      Path of dir in which reference data are held; this should be created by download-references.nf and contain dir <assembly>
-    --assembly      [str]       Either GRCh37 or GRCh38 (default), as per download-references.nf
+
+    --refDir        [file]      Path of dir in which reference data are held;
+                                this should be created by download-references.nf
+                                and contain dir <assembly>
+
+    --assembly      [str]       Either GRCh37 or GRCh38 (default), as per
+                                download-references.nf
+
     --email         [str]       Email address to send reports
 
   General Optional Arguments:
-    --germline      [bool]      Run HaplotypeCaller on germline sample and annotate with CPSR (default: true)
-    --scatGath      [int]       Number of pieces to divide intervalList into for scattering to variant calling processes (default: 20 for exome, 100 for WGS)
-    --incOrder      [str]       In final plots, use this ordering of samples (if multiple somatic samples); comma-separated, no spaces (default: alphanumeric sort)
-    --multiqcConfig [str]       Config file for multiqc (default: bin/somatic_n-of-1.multiQC_config.yaml)
+
+    --germline      [bool]      Run HaplotypeCaller on germline sample and
+                                annotate with CPSR (default: true)
+
+    --scatGath      [int]       Number of pieces to divide intervalList into for
+                                scattering to variant calling processes
+                                (default: 20 for exome, 100 for WGS)
+
+    --incOrder      [str]       In final plots, use this ordering of samples
+                                (if multiple somatic samples); comma-separated,
+                                no spaces (default: alphanumeric sort)
+
+    --multiqcConfig [str]       Config file for multiqc
+                                (default: bin/somatic_n-of-1.multiQC_config.yaml)
+
     --seqLevel      [str]       WGS or exome (default: WGS)
+
     --exomeTag      [str]       Tag used for exome kit when running download-references.nf
-    --cosmic        [bool]      set this to specify output of COSMIC CGC genes only (somatic only; based on download and supply of CGC file in download_references.nf)
+
+    --cosmic        [bool]      set this to specify output of COSMIC CGC genes
+                                only (somatic only; based on download and supply
+                                of CGC file in download_references.nf)
+
+    --phylogeny     [bool]      conduct subclonal phylogeny reconstruction with
+                                pyclone-vi and pairtree
     """.stripIndent()
 }
 
@@ -734,7 +765,6 @@ process fctcsv {
 
 // 2.6.2: SCNA consensus from facets
 process fctcon {
-
   label 'med_mem'
 
   publishDir "${params.outDir}/combined/facets", mode: "copy"
@@ -746,6 +776,8 @@ process fctcon {
 
   output:
   file('*') into complete_facets
+  file(filesn) into pairtee_facets
+  file("${params.runID}.ENS.facets.CNA.master.tsv") into pairtree_facet
 
   script:
   if( !params.cosmic )
@@ -1176,6 +1208,7 @@ process vcfGRa {
   output:
   file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
   file('*') into completedvcfGRangesConsensus
+  file("${params.runID}.HMML_impacts.master_consensus_all.RData") into pairtree_rdata
 
   script:
   def inc_ord = params.incOrder ? params.incOrder : "noord"
@@ -1278,6 +1311,71 @@ process pcgrreport {
   """
 }
 
+//3.41 PycloneVI / Pairtree
+process pairtree_setup {
+
+  label 'low_mem'
+
+  publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+
+  input:
+  file(rdata) from pairtree_rdata
+  file(filesn) from pairtee_facets
+  file(cna_master) from pairtree_facet
+
+  output:
+  tuple file("${params.runID}.mutation_CN.pyclone.tsv"), file("${params.runID}.pairtree.psm") into pyclone_in
+
+  script:
+  def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
+  """
+  Rscript -e "somenone::make_pairtree_input(rdata_input = \\"${rdata}\\", cn_master = \\"${cna_master}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${which_genome}\\", tag = \\"${params.runID}\\")"
+  """
+}
+
+//3.42
+process pyclonevi {
+
+  label 'low_mem'
+
+  publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+
+  input:
+  tuple file(pyclone_input), file(pairtree_psm) from pyclone_in
+
+  output:
+  tuple file("${params.runID}.pyclone.results.tsv"), file("${params.runID}.pairtree.ssm"), file("${params.runID}.pairtree.json") into pyclone_res
+
+  script:
+  """
+  pyclone-vi fit -i ${pyclone_input} \
+                 -o ${params.runID}.pyclonevi.output.tsv
+  pyclone-vi write-results-file -i ${params.runID}.pyclonevi.output.tsv \
+                                -o ${params.runID}.pyclone.results.tsv
+  Rscript -e "somenone::make_pairtree_json(pyclone_res = \\"${params.runID}.pyclone.results.tsv\\", pairtree_psm = \\"${pairtree_psm}\\", tag = \\"${params.runID}\\")"
+  """
+}
+
+//3.42
+process pairtree_run {
+
+  label 'low_mem'
+
+  publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+
+  input:
+  tuple file(pairtree_ssm), file(pairtree_json) from pyclone_res
+
+  output:
+  file('*') into pairtree_res
+
+  script:
+  """
+  pairtree --params ${pairtree_json} ${pairtree_ssm} ${params.runID}.res.npz
+
+  plottree ${pairtree_ssm} ${pairtree_json} ${params.runID}.res.npz ${params.runID}.pairtree.results.html
+  """
+}
 /*
 ================================================================================
                           4.  MULTIQC AND CLOSEOUT
