@@ -71,6 +71,7 @@ dependencies:
   - r-nlme
   - r-nmf
   - r-openssl
+  - r-openxlsx
   - r-pctgcdata
   - r-pheatmap
   - r-plyr
