@@ -1344,7 +1344,7 @@ process pyclonevi {
   tuple file(pyclone_input), file(pairtree_psm) from pyclone_in
 
   output:
-  tuple file("${params.runID}.pyclone.results.tsv"), file("${params.runID}.pairtree.ssm"), file("${params.runID}.pairtree.json") into pyclone_res
+  tuple file("${params.runID}.pyclone.results.tsv"), file("${pairtree.psm}") into pyclone_res
 
   script:
   """
@@ -1352,7 +1352,6 @@ process pyclonevi {
                  -o ${params.runID}.pyclonevi.output.tsv
   pyclone-vi write-results-file -i ${params.runID}.pyclonevi.output.tsv \
                                 -o ${params.runID}.pyclone.results.tsv
-  Rscript -e "somenone::make_pairtree_json(pyclone_res = \\"${params.runID}.pyclone.results.tsv\\", pairtree_psm = \\"${pairtree_psm}\\", tag = \\"${params.runID}\\")"
   """
 }
 
@@ -1364,16 +1363,18 @@ process pairtree_run {
   publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
 
   input:
-  tuple file(pairtree_ssm), file(pairtree_json) from pyclone_res
+  tuple file(pyclone_res), file(pairtree_psm) from pyclone_res
 
   output:
   file('*') into pairtree_res
 
   script:
   """
-  pairtree --params ${pairtree_json} ${pairtree_ssm} ${params.runID}.res.npz
+  Rscript -e "somenone::make_pairtree_json(pyclone_res = \\"${pyclone_res}\\", pairtree_psm = \\"${pairtree_psm}\\", tag = \\"${params.runID}\\")"
 
-  plottree ${pairtree_ssm} ${pairtree_json} ${params.runID}.res.npz ${params.runID}.pairtree.results.html
+  pairtree --params ${params.runID}.pairtree.json ${params.runID}.pairtree.ssm ${params.runID}.res.npz
+
+  plottree ${params.runID}.pairtree.ssm ${params.runID}.pairtree.json ${params.runID}.res.npz ${params.runID}.pairtree.results.html
   """
 }
 /*
