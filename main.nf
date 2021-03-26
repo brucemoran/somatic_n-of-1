@@ -1356,8 +1356,6 @@ process pairtree_setup {
 // }
 
 //3.42
-concentrations = ["-2,-1,0.5,1.5"]
-models = ["pairwise,linfreq"]
 
 process pairtree_run {
 
@@ -1367,8 +1365,8 @@ process pairtree_run {
 
   input:
   tuple file(pairtree_psm), file(pairtree_json) from pairtree_in
-  each concn from conentrations
-  each model from models
+  each concn from ["-2,-1,0.5,1.5"]
+  each model from ["pairwise,linfreq"]
 
   output:
   file('*') into pairtree_res
