@@ -1383,7 +1383,7 @@ process pairtree_run {
               ${pairtree_json} \
               ${params.runID}.out_params_${model}_${concn}.json
 
-  python remove_high_vaf.py ${params.runID}.pairtree.ssm \
+  python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py ${params.runID}.pairtree.ssm \
                             ${params.runID}.out_params_${model}_${concn}.json \
                             ${params.runID}.rmvaf_params_${model}_${concn}.json
 
