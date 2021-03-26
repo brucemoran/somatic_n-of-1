@@ -1365,8 +1365,8 @@ process pairtree_run {
 
   input:
   tuple file(pairtree_psm), file(pairtree_json) from pairtree_in
-  each concn from ["-2,-1,0.5,1.5"]
-  each model from ["pairwise,linfreq"]
+  each concn from ["-2","-1","0.5","1.5"]
+  each model from ["pairwise","linfreq"]
 
   output:
   file('*') into pairtree_res
