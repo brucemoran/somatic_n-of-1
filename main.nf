@@ -55,7 +55,7 @@ def helpMessage() {
                                 of CGC file in download_references.nf)
 
     --phylogeny     [bool]      conduct subclonal phylogeny reconstruction with
-                                pyclone-vi and pairtree
+                                pairtree
     """.stripIndent()
 }
 
@@ -1356,35 +1356,45 @@ process pairtree_setup {
 // }
 
 //3.42
+concentrations = ["-2,-1,0.5,1.5"]
+models = ["pairwise,linfreq"]
+
 process pairtree_run {
 
   label 'low_mem'
 
-  publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+  publishDir "${params.outDir}/combined/phylogeny/pairtree/${model}_${concn}", mode: "copy"
 
   input:
   tuple file(pairtree_psm), file(pairtree_json) from pairtree_in
+  each concn from conentrations
+  each model from models
 
   output:
   file('*') into pairtree_res
 
   script:
   """
-  cut -f 1,2,4,5,6 ${pairtree_psm} > ${params.runID}.pairtree.ssm
+  cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree.ssm
 
-  clustervars --model pairwise \
+  clustervars --model ${model} \
+              --concentration ${concn} \
               ${params.runID}.pairtree.ssm \
               ${pairtree_json} \
-              ${params.runID}.out_params_fn.json
+              ${params.runID}.out_params_${model}_${concn}.json
 
-  pairtree --params ${params.runID}.out_params_fn.json \
-           ${params.runID}.pairtree.ssm \
-           ${params.runID}.res.npz
+  python remove_high_vaf.py ${params.runID}.pairtree.ssm \
+                            ${params.runID}.out_params_${model}_${concn}.json \
+                            ${params.runID}.rmvaf_params_${model}_${concn}.json
 
-  plottree ${params.runID}.pairtree.ssm \
-           ${params.runID}.out_params_fn.json \
-           ${params.runID}.res.npz \
-           ${params.runID}.pairtree.results.html
+  pairtree --params ${params.runID}.rmvaf_params_${model}_${concn}.json \
+           ${params.runID}.pairtree_${model}_${concn}.ssm \
+           ${params.runID}.res_${model}_${concn}.npz
+
+  plottree ${params.runID}.pairtree_${model}_${concn}.ssm \
+           ${params.runID}.rmvaf_params_${model}_${concn}.json \
+           ${params.runID}.res_${model}_${concn}.npz \
+           ${params.runID}.pairtree_${model}_${concn}.results.html
   """
 }
 /*
