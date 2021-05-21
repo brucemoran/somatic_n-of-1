@@ -181,8 +181,7 @@ if(params.sampleCat){
     echo ${dir}
     echo ${ext}
     echo ${read1ext}
-    ##cat "${dir}/*${read1ext}" > ${read1}
-    ##cat "${dir}/*${read2ext}" > ${read2}
+
     """
   }
 }
