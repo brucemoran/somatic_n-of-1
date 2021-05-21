@@ -176,11 +176,9 @@ if(params.sampleCat){
     read1ext = "${ext}".split("\\,")[1]
 
     """
-    #!/bin/bash
     echo ${dir}
     echo ${ext}
     echo ${read1ext}
-
     """
   }
 }
