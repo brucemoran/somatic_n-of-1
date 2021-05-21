@@ -156,7 +156,7 @@ if(params.sampleCsv){
 if(params.sampleCat){
   Channel.fromPath("${params.sampleCat}")
          .splitCsv( header: true )
-         .map { row -> [row.type, row.sampleID, row.meta, file(row.dir), row.ext] }
+         .map { row -> [row.type, row.sampleID, row.meta, row.dir, row.ext] }
          .set { samplecating }
 
   // 0.000: Input trimming
@@ -167,16 +167,22 @@ if(params.sampleCat){
     publishDir "${params.outDir}/samples/${sampleID}/cat", mode: "copy"
 
     input:
-    tuple val(type), val(sampleID), val(meta), file(dir), val(ext) from samplecating
+    tuple val(type), val(sampleID), val(meta), val(dir), val(ext) from samplecating
 
     output:
     tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
 
     script:
+    read1ext = "${ext}".split(",")[0]
+    read2ext = "${ext}".split(",")[1]
+
     """
     #!/bin/bash
     echo ${dir}
     echo ${ext}
+    echo ${read1ext}
+    ##cat "${dir}/*${read1ext}" > ${read1}
+    ##cat "${dir}/*${read2ext}" > ${read2}
     """
   }
 }
