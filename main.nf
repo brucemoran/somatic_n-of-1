@@ -163,6 +163,7 @@ if(params.sampleCat){
   process samplecat {
 
     label 'low_mem'
+    echo true
     publishDir "${params.outDir}/samples/${sampleID}/cat", mode: "copy"
 
     input:
@@ -172,15 +173,19 @@ if(params.sampleCat){
     tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
 
     script:
-    read1ext = "${ext}".split("\\,")[0]
-    read2ext = "${ext}".split("\\,")[1]
+    read1ext = "${ext}".split(",")[0]
+    read2ext = "${ext}".split(",")[1]
     read1 = "${ext}.R1.fastq.gz"
     read2 = "${ext}.R2.fastq.gz"
 
     """
     #!/bin/bash
-    cat "${dir}/*${read1ext}" > ${read1}
-    cat "${dir}/*${read2ext}" > ${read2}
+    echo ${dir}
+    echo ${ext}
+    echo ${read1ext}
+    echo ${read1}
+    ##cat "${dir}/*${read1ext}" > ${read1}
+    ##cat "${dir}/*${read2ext}" > ${read2}
     """
   }
 }
