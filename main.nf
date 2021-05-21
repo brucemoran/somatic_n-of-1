@@ -70,11 +70,11 @@ def helpMessage() {
 if (params.help) exit 0, helpMessage()
 
 //Test Mandatory Arguments
-if(!Channel.from(params.sampleCsv) & !Channel.from(params.sampleCat)){
+if(!params.sampleCsv & !params.sampleCat){
   exit 1, "Please include one of --sampleCsv or --sampleCat, see --help for format"
 }
 
-if(Channel.from(params.sampleCsv) & Channel.from(params.sampleCat)){
+if(params.sampleCsv & params.sampleCat){
   exit 1, "Please include only one of --sampleCsv or --sampleCat, see --help for format"
 }
 
