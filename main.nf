@@ -157,7 +157,7 @@ if(params.sampleCat){
   Channel.fromPath("${params.sampleCat}")
          .splitCsv( header: true )
          .map { row -> [row.type, row.sampleID, row.meta, file(row.dir), row.ext] }
-         .set { sample_cat }
+         .set { samplecating }
 
   // 0.000: Input trimming
   process samplecat {
@@ -167,7 +167,7 @@ if(params.sampleCat){
     publishDir "${params.outDir}/samples/${sampleID}/cat", mode: "copy"
 
     input:
-    tuple val(type), val(sampleID), val(meta), file(dir), val(ext) from sample_cat
+    tuple val(type), val(sampleID), val(meta), file(dir), val(ext) from samplecating
 
     output:
     tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
