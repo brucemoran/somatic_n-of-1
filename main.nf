@@ -46,10 +46,10 @@ def helpMessage() {
 
     --sampleCat     [str]       File used when fastq data is in multiple files
                                 which are cat'ed; replaces --sampleCsv; headers:
-                                type (either "germline" or "somatic"), sampleID,
+                                type (either germline or somatic), sampleID,
                                 meta, dir (contains fastq to be cat'ed), ext
                                 (extension scheme for parsing read1, read2 e.g.
-                                "_1.fq.gz,_2.fq.gz").
+                                _1.fq.gz;_2.fq.gz).
 
     --multiqcConfig [str]       Config file for multiqc
                                 (default: bin/somatic_n-of-1.multiQC_config.yaml)
@@ -173,9 +173,14 @@ if(params.sampleCat){
     tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
 
     script:
+    def rd1ext = "${ext}".split(';')[0]
+    def rd2ext = "${ext}".split(';')[1]
+    def read1 = "${sampleID}.R1.fastq.gz"
+    def read2 = "${sampleID}.R2.fastq.gz"
     """
-    echo ${dir}
-    echo ${ext}
+    #! bash
+    cat ${dir}/*.${rd1ext} > ${read1}
+    cat ${dir}/*.${rd2ext} > ${read2}
     """
   }
 }
