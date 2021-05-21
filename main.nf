@@ -173,8 +173,7 @@ if(params.sampleCat){
     tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
 
     script:
-    read1ext = "${ext}".split("\\,")[0]
-    read2ext = "${ext}".split("\\,")[1]
+    read1ext = "${ext}".split("\\,")[1]
 
     """
     #!/bin/bash
