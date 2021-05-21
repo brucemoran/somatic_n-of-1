@@ -70,8 +70,12 @@ def helpMessage() {
 if (params.help) exit 0, helpMessage()
 
 //Test Mandatory Arguments
-if(!Channel.from(params.sampleCsv, checkIfExists: true) & !Channel.from(params.sampleCat, checkIfExists: true)){
-  exit 1, "Please include --sampleCsv or --sampleCat, see --help for format"
+if(!Channel.from(params.sampleCsv) & !Channel.from(params.sampleCat)){
+  exit 1, "Please include one of --sampleCsv or --sampleCat, see --help for format"
+}
+
+if(Channel.from(params.sampleCsv) & Channel.from(params.sampleCat)){
+  exit 1, "Please include only one of --sampleCsv or --sampleCat, see --help for format"
 }
 
 if(!Channel.from(params.runID, checkIfExists: true)){
@@ -142,13 +146,14 @@ reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir
 */
 /* 0.00: Input using sample.csv
 */
-if(Channel.from(params.sampleCsv, checkIfExists: true)){
+if(params.sampleCsv){
   Channel.fromPath("${params.sampleCsv}")
          .splitCsv( header: true )
          .map { row -> [row.type, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
          .set { bbduking }
 }
-if(Channel.from(params.sampleCat, checkIfExists: true)){
+
+if(params.sampleCat){
   Channel.fromPath("${params.sampleCat}")
          .splitCsv( header: true )
          .map { row -> [row.type, row.sampleID, row.meta, file(row.dir), row.ext] }
