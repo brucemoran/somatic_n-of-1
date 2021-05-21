@@ -70,10 +70,8 @@ def helpMessage() {
 if (params.help) exit 0, helpMessage()
 
 //Test Mandatory Arguments
-if(!Channel.from(params.sampleCsv, checkIfExists: true)){
-  if(!Channel.from(params.sampleCat, checkIfExists: true)){
-    exit 1, "Please include --sampleCsv or --sampleCat, see --help for format"
-  }
+if(!Channel.from(params.sampleCsv, checkIfExists: true) & !Channel.from(params.sampleCat, checkIfExists: true)){
+  exit 1, "Please include --sampleCsv or --sampleCat, see --help for format"
 }
 
 if(!Channel.from(params.runID, checkIfExists: true)){
