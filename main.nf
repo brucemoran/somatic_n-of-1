@@ -15,9 +15,10 @@ def helpMessage() {
                                 (required: standard,singularity)
 
     --sampleCsv     [file]      CSV format, headers: type (either "germline" or
-                                "somatic"), sampleID, meta,
-                                /path/to/read1.fastq.gz,/path/to/read2.fastq.gz;
-                                use meta for naming in PCGR, CPSR reports
+                                "somatic"), sampleID, meta, read1 (e.g.
+                                /path/to/read1.fastq.gz), read2
+                                (e.g. /path/to/read2.fastq.gz); use meta for
+                                naming in PCGR, CPSR reports
 
     --runID         [str]       Name for run, used to tag outputs
 
@@ -43,6 +44,13 @@ def helpMessage() {
                                 (if multiple somatic samples); comma-separated,
                                 no spaces (default: alphanumeric sort)
 
+    --sampleCat     [str]       File used when fastq data is in multiple files
+                                which are cat'ed; replaces --sampleCsv; headers:
+                                type (either "germline" or "somatic"), sampleID,
+                                meta, dir (contains fastq to be cat'ed), ext
+                                (extension scheme for parsing read1, read2 e.g.
+                                "_1.fq.gz,_2.fq.gz").
+
     --multiqcConfig [str]       Config file for multiqc
                                 (default: bin/somatic_n-of-1.multiQC_config.yaml)
 
@@ -63,7 +71,9 @@ if (params.help) exit 0, helpMessage()
 
 //Test Mandatory Arguments
 if(!Channel.from(params.sampleCsv, checkIfExists: true)){
-  exit 1, "Please include --sampleCsv, see --help for format"
+  if(!Channel.from(params.sampleCat, checkIfExists: true)){
+    exit 1, "Please include --sampleCsv or --sampleCat, see --help for format"
+  }
 }
 
 if(!Channel.from(params.runID, checkIfExists: true)){
@@ -127,12 +137,50 @@ reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[par
 //setting of intlist based on seqlevel and exomeTag
 reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
 
+/*
+================================================================================
+                          -0. PREPROCESS INPUT SAMPLE FILE
+================================================================================
+*/
 /* 0.00: Input using sample.csv
 */
-Channel.fromPath("${params.sampleCsv}")
-       .splitCsv( header: true )
-       .map { row -> [row.type, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
-       .set { bbduking }
+if(Channel.from(params.sampleCsv, checkIfExists: true)){
+  Channel.fromPath("${params.sampleCsv}")
+         .splitCsv( header: true )
+         .map { row -> [row.type, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
+         .set { bbduking }
+}
+if(Channel.from(params.sampleCat, checkIfExists: true)){
+  Channel.fromPath("${params.sampleCat}")
+         .splitCsv( header: true )
+         .map { row -> [row.type, row.sampleID, row.meta, file(row.dir), row.ext] }
+         .set { sample_cat }
+
+  // 0.000: Input trimming
+  process samplecat {
+
+    label 'low_mem'
+    publishDir "${params.outDir}/samples/${sampleID}/cat", mode: "copy"
+
+    input:
+    tuple val(type), val(sampleID), val(meta), file(dir), val(ext) from sample_cat
+
+    output:
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
+
+    script:
+    def read1ext = "${ext}".split("\\,")[0]
+    def read2ext = "${ext}".split("\\,")[1]
+    def read1 = "${ext}.R1.fastq.gz"
+    def read2 = "${ext}.R2.fastq.gz"
+
+    """
+    #!/bin/bash
+    cat "${dir}/*${read1ext}" > ${read1}
+    cat "${dir}/*${read2ext}" > ${read2}
+    """
+  }
+}
 
 /*
 ================================================================================
