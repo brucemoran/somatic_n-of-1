@@ -178,8 +178,8 @@ if(params.sampleCat){
     read2 = "${sampleID}.R2.fastq.gz"
     """
     #! bash
-    cat ${dir}/*.${rd1ext} > ${read1}
-    cat ${dir}/*.${rd2ext} > ${read2}
+    cat \$(find ${dir} | grep ${rd1ext}) > ${read1}
+    cat \$(find ${dir} | grep ${rd2ext}) > ${read2}
     """
   }
 }
