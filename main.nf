@@ -178,8 +178,8 @@ if(params.sampleCat){
     read2 = "${sampleID}.R2.fastq.gz"
     """
     #! bash
-    cat \$(find ${dir} | grep ${rd1ext}) > ${read1}
-    cat \$(find ${dir} | grep ${rd2ext}) > ${read2}
+    cat \$(find ${dir} | grep ${rd1ext} | sort) > ${read1}
+    cat \$(find ${dir} | grep ${rd2ext} | sort) > ${read2}
     """
   }
 }
@@ -280,7 +280,7 @@ process bwamem {
   label 'high_mem'
   errorStrategy 'retry'
   maxRetries 3
-  
+
   input:
   tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bwa_memming
   file(bwa) from reference.bwa
