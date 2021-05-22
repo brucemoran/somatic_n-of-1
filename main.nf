@@ -278,7 +278,9 @@ process fastqc {
 process bwamem {
 
   label 'high_mem'
-
+  errorStrategy 'retry'
+  maxRetries 3
+  
   input:
   tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bwa_memming
   file(bwa) from reference.bwa
