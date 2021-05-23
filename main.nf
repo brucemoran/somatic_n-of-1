@@ -476,7 +476,9 @@ hc_germ
 process haplotypecaller {
 
   label 'med_mem'
-
+  errorStrategy 'retry'
+  maxRetries 3
+  
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai), file(intlist) from hcgermbedding
   file(fasta) from reference.fa
