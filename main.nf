@@ -478,7 +478,7 @@ process haplotypecaller {
   label 'med_mem'
   errorStrategy 'retry'
   maxRetries 3
-  
+
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai), file(intlist) from hcgermbedding
   file(fasta) from reference.fa
@@ -682,7 +682,7 @@ process cpsrreport {
   {
   META=\$(echo ${meta} | sed 's/\\s */_/g' | sed 's/[()]//g')
 
-  ##CPSR v0.6.0rc
+  ##CPSR v0.6.1
   cpsr.py \
     --no-docker \
     --no_vcf_validate \
@@ -1343,7 +1343,7 @@ process pcgrreport {
     PURITY="--tumor_purity \$(cut -f 2 ${ploidpur})"
   fi
 
-  ##PCGR 0.9.0rc
+  ##PCGR 0.9.1
   pcgr.py \
     --pcgr_dir ${pcgrbase} \
     --output_dir ./ \
