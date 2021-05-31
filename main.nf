@@ -1262,7 +1262,6 @@ process vcfGRa {
   output:
   file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
   file('*') into completedvcfGRangesConsensus
-  file("${params.runID}.HMML_impacts.master_consensus_all.RData") into pairtree_rdata
 
   script:
   def inc_ord = params.incOrder ? params.incOrder : "noord"
@@ -1366,6 +1365,22 @@ process pcgrreport {
 }
 
 //3.41 PycloneVI / Pairtree
+process pairtree_check {
+
+  input:
+  file(rdata) from completedvcfGRangesConsensus
+
+  output:
+  file("${params.runID}.HMML_impacts.master_consensus_all.RData") into pairtree_rdata
+
+  when:
+  params.phylogeny == true
+
+  script:
+  """
+  """
+}
+
 process pairtree_setup {
 
   label 'low_mem'
@@ -1380,6 +1395,9 @@ process pairtree_setup {
   output:
   tuple file("${params.runID}.pairtree.psm"), file("${params.runID}.in_params_fn.json") into pairtree_in
 
+  when:
+  params.phylogeny == true
+  
   script:
   def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
   """
@@ -1424,6 +1442,9 @@ process pairtree_run {
 
   output:
   file('*') into pairtree_res
+
+  when:
+  params.phylogeny == true
 
   script:
   """
