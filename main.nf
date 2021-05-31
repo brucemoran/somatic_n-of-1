@@ -10,29 +10,72 @@ def helpMessage() {
   nextflow run brucemoran/somatic_n-of-1
 
   Mandatory arguments:
-    -profile        [str]       Configuration profile (required: standard,singularity)
-    --sampleCsv     [file]      CSV format, headers: type (either "germline" or "somatic"),sampleID,meta,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz; use meta for naming in PCGR, CPSR reports
+
+    -profile        [str]       Configuration profile
+                                (required: standard,singularity)
+
+    --sampleCsv     [file]      CSV format, headers: type (either "germline" or
+                                "somatic"), sampleID, meta, read1 (e.g.
+                                /path/to/read1.fastq.gz), read2
+                                (e.g. /path/to/read2.fastq.gz); use meta for
+                                naming in PCGR, CPSR reports
+
     --runID         [str]       Name for run, used to tag outputs
-    --refDir        [file]      Path of dir in which reference data are held; this should be created by download-references.nf and contain dir <assembly>
-    --assembly      [str]       Either GRCh37 or GRCh38 (default), as per download-references.nf
+
+    --refDir        [file]      Path of dir in which reference data are held;
+                                this should be created by download-references.nf
+                                and contain dir <assembly>
+
+    --assembly      [str]       Either GRCh37 or GRCh38 (default), as per
+                                download-references.nf
+
     --email         [str]       Email address to send reports
 
   General Optional Arguments:
-    --germline      [bool]      Run HaplotypeCaller on germline sample and annotate with CPSR (default: true)
-    --scatGath      [int]       Number of pieces to divide intervalList into for scattering to variant calling processes (default: 20 for exome, 100 for WGS)
-    --incOrder      [str]       In final plots, use this ordering of samples (if multiple somatic samples); comma-separated, no spaces (default: alphanumeric sort)
-    --multiqcConfig [str]       Config file for multiqc (default: bin/somatic_n-of-1.multiQC_config.yaml)
+
+    --germline      [bool]      Run HaplotypeCaller on germline sample and
+                                annotate with CPSR (default: true)
+
+    --scatGath      [int]       Number of pieces to divide intervalList into for
+                                scattering to variant calling processes
+                                (default: 20 for exome, 100 for WGS)
+
+    --incOrder      [str]       In final plots, use this ordering of samples
+                                (if multiple somatic samples); comma-separated,
+                                no spaces (default: alphanumeric sort)
+
+    --sampleCat     [str]       File used when fastq data is in multiple files
+                                which are cat'ed; replaces --sampleCsv; headers:
+                                type (either germline or somatic), sampleID,
+                                meta, dir (contains fastq to be cat'ed), ext
+                                (extension scheme for parsing read1, read2 e.g.
+                                _1.fq.gz;_2.fq.gz).
+
+    --multiqcConfig [str]       Config file for multiqc
+                                (default: bin/somatic_n-of-1.multiQC_config.yaml)
+
     --seqLevel      [str]       WGS or exome (default: WGS)
+
     --exomeTag      [str]       Tag used for exome kit when running download-references.nf
-    --cosmic        [bool]      set this to specify output of COSMIC CGC genes only (somatic only; based on download and supply of CGC file in download_references.nf)
-    """.stripIndet()
+
+    --cosmic        [bool]      set this to specify output of COSMIC CGC genes
+                                only (somatic only; based on download and supply
+                                of CGC file in download_references.nf)
+
+    --phylogeny     [bool]      conduct subclonal phylogeny reconstruction with
+                                pairtree
+    """.stripIndent()
 }
 
 if (params.help) exit 0, helpMessage()
 
 //Test Mandatory Arguments
-if(!Channel.from(params.sampleCsv, checkIfExists: true)){
-  exit 1, "Please include --sampleCsv, see --help for format"
+if(params.sampleCsv && params.sampleCat){
+  exit 1, "Please include only one of --sampleCsv or --sampleCat, see --help for format"
+}
+
+if(params.sampleCsv == null && params.sampleCat == null){
+  exit 1, "Please include one of --sampleCsv or --sampleCat, see --help for format"
 }
 
 if(!Channel.from(params.runID, checkIfExists: true)){
@@ -86,7 +129,9 @@ reference.hc_dbs = Channel.value(file(params.genomes[params.assembly].hc_dbs))
 reference.dbsnp = Channel.value(file(params.genomes[params.assembly].dbsnp))
 reference.gridss = Channel.value(file(params.genomes[params.assembly].gridss))
 reference.pcgrbase = Channel.value(file(params.genomes[params.assembly].pcgr))
-reference.seqlevel = Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}"))
+
+//if seqlevel is exome, there is a dir per exome already parsed according to exomeTag
+reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}")) : Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}/${params.exomeTag}"))
 
 //set cosmic
 reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[params.assembly].cosmic)) : null
@@ -94,12 +139,50 @@ reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[par
 //setting of intlist based on seqlevel and exomeTag
 reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
 
+/*
+================================================================================
+                          -0. PREPROCESS INPUT SAMPLE FILE
+================================================================================
+*/
 /* 0.00: Input using sample.csv
 */
-Channel.fromPath("${params.sampleCsv}")
-       .splitCsv( header: true )
-       .map { row -> [row.type, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
-       .set { bbduking }
+if(params.sampleCsv){
+  Channel.fromPath("${params.sampleCsv}")
+         .splitCsv( header: true )
+         .map { row -> [row.type, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
+         .set { bbduking }
+}
+
+if(params.sampleCat){
+  Channel.fromPath("${params.sampleCat}")
+         .splitCsv( header: true )
+         .map { row -> [row.type, row.sampleID, row.meta, row.dir, row.ext] }
+         .set { samplecating }
+
+  // 0.000: Input trimming
+  process samplecat {
+
+    label 'low_mem'
+    publishDir "${params.outDir}/samples/${sampleID}/cat", mode: "copy"
+
+    input:
+    tuple val(type), val(sampleID), val(meta), val(dir), val(ext) from samplecating
+
+    output:
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
+
+    script:
+    rd1ext = "${ext}".split(';')[0]
+    rd2ext = "${ext}".split(';')[1]
+    read1 = "${sampleID}.R1.fastq.gz"
+    read2 = "${sampleID}.R2.fastq.gz"
+    """
+    #! bash
+    cat \$(find ${dir} | grep ${rd1ext} | sort) > ${read1}
+    cat \$(find ${dir} | grep ${rd2ext} | sort) > ${read2}
+    """
+  }
+}
 
 /*
 ================================================================================
@@ -195,6 +278,8 @@ process fastqc {
 process bwamem {
 
   label 'high_mem'
+  errorStrategy 'retry'
+  maxRetries 3
 
   input:
   tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bwa_memming
@@ -391,6 +476,8 @@ hc_germ
 process haplotypecaller {
 
   label 'med_mem'
+  errorStrategy 'retry'
+  maxRetries 3
 
   input:
   tuple val(type), val(sampleID), val(meta), file(bam), file(bai), file(intlist) from hcgermbedding
@@ -434,6 +521,11 @@ process haplotypecaller {
   """
 }
 
+//group those outputs
+hc_gt
+  .groupTuple()
+  .map { it -> tuple(it[0], it[1..-1].flatten()) }
+  .set { hc_fm }
 
 /* 2.1.1: GRIDSS SV calling in WGS
 * because we do not know order or number of samples, create tuple with
@@ -448,7 +540,7 @@ gridssing
 process gridss {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/sv/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
+  publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
 
   input:
   file(listbams) from gridssin
@@ -461,13 +553,13 @@ process gridss {
   tuple val(germlineID), file("tumords.txt"), file("${params.runID}.output.vcf.gz") into gridssfilter
 
   when:
-  params.seqlevel == "wgs" && params.assembly == "GRCh37"
+  params.seqlevel == "wgs"
 
   script:
   def jvmheap_taskmem = task.memory == null ? "" : "--jvmheap " + javaTaskmem("${task.memory}")
   def fasta = "${bwa}/*fasta"
   def gridss_blacklist = "${gridss_files}/gridss_blacklist.noChr.bed"
-  def gridss_props = "${gridss_files}/gridss.properties"
+  def gridss_props = "${gridss_files}/dbs/gridss/gridss.properties"
   """
   GERMLINEBAM=\$(ls | grep ${germlineID} | grep bam\$ | grep -v bai)
   BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
@@ -497,7 +589,7 @@ process gridss {
 process gridss_filter {
 
   label 'max_mem'
-  publishDir path: "${params.outDir}/sv/gridss", mode: "copy"
+  publishDir path: "${params.outDir}/combined/gridss", mode: "copy"
 
   input:
   tuple val(germlineID), file(tumords), file("${params.runID}.output.vcf.gz") from gridssfilter
@@ -508,7 +600,7 @@ process gridss_filter {
 
   when:
   params.seqlevel == "wgs"
-  
+
   script:
   """
   Rscript --vanilla /opt/gridss/gridss_somatic_filter.R \
@@ -525,7 +617,7 @@ process gridss_filter {
 process gridss_vcf_pp {
 
   label 'low_mem'
-  publishDir path: "${params.outDir}/sv/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
+  publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
   input:
   tuple val(germlineID), file(vcf), file(tbi) from gridsspp
@@ -535,7 +627,7 @@ process gridss_vcf_pp {
   file('*') into completegridsspp
 
   when:
-  params.seqlevel == "wgs" && params.assembly == "GRCh37"
+  params.seqlevel == "wgs"
 
   script:
   def dict = "${bwa}/*dict"
@@ -546,15 +638,10 @@ process gridss_vcf_pp {
 }
 
 // 2.2: HaplotypeCaller merge
-hc_gt
-  .groupTuple()
-  .map { it -> tuple(it[0], it[1..-1].flatten()) }
-  .set { hc_fm }
-
 process hc_merge {
 
   label 'high_mem'
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf.*'
+  publishDir path: "${params.outDir}/samples/${sampleID}/haplotypecaller", mode: "copy", pattern: '*.vcf.*'
 
   input:
   tuple val(sampleID), file(rawvcfs) from hc_fm
@@ -577,8 +664,8 @@ process cpsrreport {
 
   label 'med_mem'
 
-  publishDir "${params.outDir}/reports", mode: "copy", pattern: "*.html"
-  publishDir "${params.outDir}/output/cpsr", mode: "copy", pattern: "*[!.html]"
+  publishDir "${params.outDir}/reports/cpsr", mode: "copy", pattern: "*.html"
+  publishDir "${params.outDir}/samples/${sampleID}/cpsr", mode: "copy", pattern: "*[!.html]"
 
   input:
   tuple val(sampleID), val(meta), file(vcf), file(tbi) from cpsr_vcf
@@ -595,7 +682,7 @@ process cpsrreport {
   {
   META=\$(echo ${meta} | sed 's/\\s */_/g' | sed 's/[()]//g')
 
-  ##CPSR v0.6.0rc
+  ##CPSR v0.6.1
   cpsr.py \
     --no-docker \
     --no_vcf_validate \
@@ -732,10 +819,9 @@ process fctcsv {
 
 // 2.6.2: SCNA consensus from facets
 process fctcon {
-
   label 'med_mem'
 
-  publishDir "${params.outDir}/output/scna/facets", mode: "copy"
+  publishDir "${params.outDir}/combined/facets", mode: "copy"
 
   input:
   file(filesn) from facets_consensusing.collect()
@@ -744,6 +830,8 @@ process fctcon {
 
   output:
   file('*') into complete_facets
+  file(filesn) into pairtee_facets
+  file("${params.runID}.ENS.facets.CNA.master.tsv") into pairtree_facet
 
   script:
   if( !params.cosmic )
@@ -888,8 +976,6 @@ process mutct2_contam_filter {
   label 'med_mem'
 
   publishDir path: "${params.outDir}/samples/${sampleID}/mutect2", mode: "copy", overwrite: true
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*raw.vcf', overwrite: true
-  publishDir path: "${params.outDir}/samples/", mode: "copy", pattern: '*issue.table', overwrite: true
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai), file(mergevcf), file(statsvcf), file(readorient) from mutect2_contam_merge
@@ -906,12 +992,13 @@ process mutct2_contam_filter {
 
   script:
   def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
-  def gpsgz = params.seqlevel == "exome" ? "${gps_files}/af-only-gnomad.${params.exomeTag}.hg*.noChr.vcf.gz" : "${gps_files}/af-only-gnomad.wgs.hg*.noChr.vcf.gz"
+  hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
+  gpsgz = params.seqlevel == "exome" ? "${gps_files}/af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz" : "${gps_files}/af-only-gnomad.wgs.${hg}.noChr.vcf.gz"
   """
   gatk ${taskmem} \
     GetPileupSummaries \
     -I ${tumourbam} \
-    -V \$(echo ${gpsgz}) \
+    -V ${gpsgz} \
     -O ${sampleID}".getpileupsummaries.table" \
     -L ${intlist}
 
@@ -954,7 +1041,6 @@ process mntstr {
   label 'high_mem'
 
   publishDir path: "${params.outDir}/samples/${sampleID}/manta-strelka2", mode: "copy"
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*[.strelka2.snv_indel.raw.vcf, .strelka2.snv_indel.pass.vcf]'
 
   input:
   tuple val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mantastrelka2ing
@@ -1070,8 +1156,7 @@ process lancet_filter {
 
   label 'med_mem'
 
-  publishDir path: "${params.outDir}/samples/$sampleID/lancet", mode: "copy"
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*raw.vcf'
+  publishDir path: "${params.outDir}/samples/${sampleID}/lancet", mode: "copy"
 
   input:
   tuple val(sampleID), file(mergevcf) from lancet_merge
@@ -1105,7 +1190,7 @@ process vepann {
 
   label 'med_mem'
 
-  publishDir path: "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
+  publishDir path: "${params.outDir}/samples/${sampleID}/${caller}", mode: "copy", pattern: "${sampleID}.${caller}.snv_indel.pass.vep.vcf"
 
   input:
   each file(vcf) from ALLVCFS
@@ -1121,6 +1206,8 @@ process vepann {
   script:
   def grch_vers = "${grchver}".split("\\/")[-1]
   def vcf_anno = "${vcf}".replaceAll(".vcf", ".vep.vcf")
+  sampleID = "${vcf}".split("\\.")[0]
+  caller = "${vcf}".split("\\.")[1]
   """
   vep --dir_cache ${pcgrbase}/data/${grch_vers}/.vep \
     --offline \
@@ -1165,9 +1252,7 @@ process vcfGRa {
 
   label 'max_mem'
 
-  publishDir "${params.outDir}/output/pdf", mode: "copy", pattern: '*.pdf'
-  publishDir "${params.outDir}/output/vcf", mode: "copy", pattern: '*.vcf'
-  publishDir "${params.outDir}/output/data", mode: "copy", pattern: '*[.RData, .tsv]'
+  publishDir "${params.outDir}/combined/variant_consensus", mode: "copy"
 
   input:
   file(grangesvcfs) from allvcfs
@@ -1176,8 +1261,8 @@ process vcfGRa {
 
   output:
   file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
-  file('*.master_consensus_all.RData') into rdata_chimaera
   file('*') into completedvcfGRangesConsensus
+  file("${params.runID}.HMML_impacts.master_consensus_all.RData") into pairtree_rdata
 
   script:
   def inc_ord = params.incOrder ? params.incOrder : "noord"
@@ -1229,7 +1314,7 @@ process pcgrreport {
   errorStrategy 'retry'
   maxRetries 3
 
-  publishDir "${params.outDir}/reports", mode: "copy", pattern: "*html"
+  publishDir "${params.outDir}/reports/pcgr", mode: "copy", pattern: "*html"
   publishDir "${params.outDir}/samples/${sampleID}/pcgr", mode: "copy", pattern: "*[!.html]"
 
   input:
@@ -1244,6 +1329,7 @@ process pcgrreport {
   script:
   grch_vers = "${grchver}".split("\\/")[-1]
   config = params.seqlevel == "exome" ? "${pcgrbase}/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml"
+  assay = params.seqlevel == "exome" ? "WES" : "WGS"
   """
   {
   ##want META to allow spaces, remove non-alphanum
@@ -1257,7 +1343,7 @@ process pcgrreport {
     PURITY="--tumor_purity \$(cut -f 2 ${ploidpur})"
   fi
 
-  ##PCGR 0.9.0rc
+  ##PCGR 0.9.1
   pcgr.py \
     --pcgr_dir ${pcgrbase} \
     --output_dir ./ \
@@ -1272,88 +1358,97 @@ process pcgrreport {
     --estimate_tmb \
     --estimate_msi_status \
     --estimate_signatures \
-    --include_trials
+    --include_trials \
+    --assay ${assay}
 
   } 2>&1 | tee > ${sampleID}.pcgr.log.txt
   """
 }
 
-// // 3.4 pyclone setup
-// process pyclone_setup {
+//3.41 PycloneVI / Pairtree
+process pairtree_setup {
+
+  label 'low_mem'
+
+  publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+
+  input:
+  file(rdata) from pairtree_rdata
+  file(filesn) from pairtee_facets
+  file(cna_master) from pairtree_facet
+
+  output:
+  tuple file("${params.runID}.pairtree.psm"), file("${params.runID}.in_params_fn.json") into pairtree_in
+
+  script:
+  def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
+  """
+  Rscript -e "somenone::make_pairtree_input(rdata_input = \\"${rdata}\\", cn_master = \\"${cna_master}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${which_genome}\\", tag = \\"${params.runID}\\")"
+  """
+}
+
+//3.42
+// process pyclonevi {
 //
-//   label 'med_mem'
+//   label 'low_mem'
 //
-//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
+//   publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
 //
 //   input:
-//   file(rdata) from rdata_pyclone
-//   tuple file(facets), file(purity) from facets_pyclone.collect()
+//   tuple file(pyclone_input), file(pairtree_psm) from pyclone_in
 //
 //   output:
-//   file('*.mutation_CN.pyclone.tsv') into pyclone_tsv
+//   tuple file("${params.runID}.pyclone.results.tsv"), file("${pairtree.psm}") into pyclone_res
 //
 //   script:
 //   """
-//   Rscript -e "somenone::vcf_cn_to_pyclone(mut_rdata = \\"${rdata}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${params.assembly}\\", tag = \\"${params.runID}\\")"
-//   """
-// }
-//
-// // 3.5 pyclone-vi run
-// process pyclone_run {
-//
-//   label 'med_mem'
-//
-//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
-//
-//   input:
-//   file(pyc_input) from pyclone_tsv
-//
-//   output:
-//   file("${params.runID}.mutation_CN.pyclonevi.tsv") into completed_pyclone_setup
-//
-//   script:
-//   """
-//   pyclone-vi fit \
-//     -i ${pyc_input} \
-//     -o ${params.runID}.pyclone-vi-fit.h5 \
-//     -c 10 \
-//     -d beta-binomial \
-//     -r 100
-//
-//   pyclone-vi write-results-file \
-//     -i ${params.runID}.pyclone-vi-fit.h5 \
-//     -o ${params.runID}.pyclone-vi-fit.tsv
-//   """
-// }
-//
-// // 3.6 clonevol run
-// process clonevol_run {
-//
-//   label 'med_mem'
-//
-//   publishDir "${params.outDir}/output/pyclone", mode: "copy"
-//
-//   input:
-//   file(pyc_input) from pyclone_tsv
-//
-//   output:
-//   file("${params.runID}.mutation_CN.pyclonevi.tsv") into completed_pyclone_setup
-//
-//   script:
-//   """
-//   pyclone-vi fit \
-//     -i ${pyc_input} \
-//     -o ${params.runID}.pyclone-vi-fit.h5 \
-//     -c 40 \
-//     -d beta-binomial \
-//     -r 10
-//
-//   pyclone-vi write-results-file \
-//     -i ${params.runID}.pyclone-vi-fit.h5 \
-//     -o ${params.runID}.pyclone-vi-fit.tsv
+//   pyclone-vi fit -i ${pyclone_input} \
+//                  -o ${params.runID}.pyclonevi.output.tsv
+//   pyclone-vi write-results-file -i ${params.runID}.pyclonevi.output.tsv \
+//                                 -o ${params.runID}.pyclone.results.tsv
 //   """
 // }
 
+//3.42
+
+process pairtree_run {
+
+  label 'low_mem'
+
+  publishDir "${params.outDir}/combined/phylogeny/pairtree/${model}_${concn}", mode: "copy"
+
+  input:
+  tuple file(pairtree_psm), file(pairtree_json) from pairtree_in
+  each concn from Channel.from("-2","-1","0.5","1.5")
+  each model from Channel.from("pairwise","linfreq")
+
+  output:
+  file('*') into pairtree_res
+
+  script:
+  """
+  cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree.ssm
+
+  clustervars --model ${model} \
+              --concentration ${concn} \
+              ${params.runID}.pairtree.ssm \
+              ${pairtree_json} \
+              ${params.runID}.out_params_${model}_${concn}.json
+
+  python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py ${params.runID}.pairtree.ssm \
+                            ${params.runID}.out_params_${model}_${concn}.json \
+                            ${params.runID}.rmvaf_params_${model}_${concn}.json
+
+  pairtree --params ${params.runID}.rmvaf_params_${model}_${concn}.json \
+           ${params.runID}.pairtree_${model}_${concn}.ssm \
+           ${params.runID}.res_${model}_${concn}.npz
+
+  plottree ${params.runID}.pairtree_${model}_${concn}.ssm \
+           ${params.runID}.rmvaf_params_${model}_${concn}.json \
+           ${params.runID}.res_${model}_${concn}.npz \
+           ${params.runID}.pairtree_${model}_${concn}.results.html
+  """
+}
 /*
 ================================================================================
                           4.  MULTIQC AND CLOSEOUT
@@ -1363,7 +1458,7 @@ process pcgrreport {
 process mltiQC {
 
   label 'low_mem'
-  publishDir path: "${params.outDir}/reports", mode: "copy", pattern: "*html"
+  publishDir path: "${params.outDir}/reports/multiQC", mode: "copy"
 
   input:
   file(fastps) from fastp_multiqc.collect()
@@ -1386,7 +1481,8 @@ process mltiQC {
 process somenone_software_vers {
 
   label 'low_mem'
-  publishDir "${params.outDir}/../pipeline_info", mode: "copy"
+  publishDir "pipeline_info", mode: 'copy'
+  publishDir path: "${params.outDir}/reports/software_vers", mode: "copy"
 
   output:
   file 'somenone_software_versions.yaml' into ch_somenone_software_vers
@@ -1397,25 +1493,42 @@ process somenone_software_vers {
   """
 }
 
-// 4.1.2: gridss software version numbers
-// //out of use as using Docker from GRIDSS now
-// process gridss_software_vers {
-//
-//   label 'low_mem'
-//   publishDir "${params.outDir}/pipeline_info", mode: 'copy'
-//
-//   output:
-//   file 'gridss_software_versions.txt' into ch_gridss_software_vers
-//
-//   when:
-//   params.seqlevel == "wgs" && params.assembly == "GRCh37"
-//
-//   script:
-//   """
-//   ls -l /opt/gridss > gridss_software_versions.txt
-//   """
-// }
+//4.1.2: gridss software version numbers
+//out of use as using Docker from GRIDSS now
+process gridss_software_vers {
 
+  label 'low_mem'
+  publishDir "${params.outDir}/pipeline_info", mode: 'copy'
+
+  output:
+  file 'gridss_software_versions.txt' into ch_gridss_software_vers
+
+  when:
+  params.seqlevel == "wgs"
+
+  script:
+  """
+  ls -l /opt/gridss > gridss_software_versions.txt
+  """
+}
+
+//4.1.3: pcgr software version numbers
+//out of use as using Docker from pcgr now
+process pcgr_software_vers {
+
+  label 'low_mem'
+  publishDir "${params.outDir}/pipeline_info", mode: 'copy'
+
+  output:
+  file 'pcgr_software_versions.txt' into ch_pcgr_software_vers
+
+
+  script:
+  """
+  pcgr.py --version > pcgr_software_versions.txt
+  cpsr.py --version >> pcgr_software_versions.txt
+  """
+}
 // 4.19: ZIP for sending on sendmail
 sendmail_pcgr.mix(sendmail_multiqc).set { sendmail_all }
 

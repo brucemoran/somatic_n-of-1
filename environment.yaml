@@ -1,8 +1,8 @@
 name: somatic_n-of-1
 channels:
+  - pcgr
   - conda-forge
   - r
-  - pcgr
   - bioconda
   - defaults
 dependencies:
@@ -37,18 +37,18 @@ dependencies:
   - bwa
   - bzip2
   - cairo
-  - cpsr
+  - cpsr=0.6.1
   - ensembl-vep
   - fastp
   - fastqc
   - gatk4
   - htslib
   - markdown
-  - msisensor
+  - mosdepth
   - multiqc
-  - nextflow
   - octopus
-  - pcgr
+  - p7zip
+  - pcgr=0.9.1
   - pcre
   - perl
   - picard
@@ -59,6 +59,7 @@ dependencies:
   - r-circlize
   - r-dbplyr
   - r-deconstructsigs
+  - r-devtools
   - r-dt
   - r-facets
   - r-forcats
@@ -72,6 +73,7 @@ dependencies:
   - r-nlme
   - r-nmf
   - r-openssl
+  - r-openxlsx
   - r-pctgcdata
   - r-pheatmap
   - r-plyr
