@@ -129,6 +129,7 @@ reference.hc_dbs = Channel.value(file(params.genomes[params.assembly].hc_dbs))
 reference.dbsnp = Channel.value(file(params.genomes[params.assembly].dbsnp))
 reference.gridss = Channel.value(file(params.genomes[params.assembly].gridss))
 reference.pcgrbase = Channel.value(file(params.genomes[params.assembly].pcgr))
+reference.pathseq = Channel.value(file(params.genomes[params.assembly].pathseq))
 
 //if seqlevel is exome, there is a dir per exome already parsed according to exomeTag
 reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}")) : Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}/${params.exomeTag}"))
@@ -150,7 +151,7 @@ if(params.sampleCsv){
   Channel.fromPath("${params.sampleCsv}")
          .splitCsv( header: true )
          .map { row -> [row.type, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
-         .set { bbduking }
+         .into { bbduking; ubaming }
 }
 
 if(params.sampleCat){
@@ -169,7 +170,7 @@ if(params.sampleCat){
     tuple val(type), val(sampleID), val(meta), val(dir), val(ext) from samplecating
 
     output:
-    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into bbduking
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into ( bbduking, ubaming )
 
     script:
     rd1ext = "${ext}".split(';')[0]
@@ -182,6 +183,43 @@ if(params.sampleCat){
     cat \$(find ${dir} | grep ${rd2ext} | sort) > ${read2}
     """
   }
+}
+
+// 0.01: Create a uBAM for Pathseq
+process ubam {
+
+  label 'high_mem'
+  errorStrategy 'retry'
+  maxRetries 3
+
+  input:
+  tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from ubaming
+
+  output:
+  tuple val(type), val(sampleID), val(meta), file('*.bam'), file('*.bai') into pathseqing
+
+  when:
+  params.microbiome == true
+
+  script:
+  def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
+  """
+  DATE=\$(date +"%Y-%m-%dT%T")
+
+  {
+  picard ${taskmem} FastqToSam \
+    FASTQ=${read1} \
+    FASTQ2=${read2} \
+    OUTPUT=${sampleID}.unaligned.bam \
+    READ_GROUP_NAME=${sampleID} \
+    SAMPLE_NAME=${sampleID} \
+    LIBRARY_NAME=LANE_X \
+    PLATFORM_UNIT=IL_X \
+    PLATFORM=ILLUMINA \
+    SEQUENCING_CENTER=UCD \
+    RUN_DATE=\$DATE
+  } 2>&1 | tee > ${sampleID}.FastqToSam.log.txt
+  """
 }
 
 /*
@@ -1397,7 +1435,7 @@ process pairtree_setup {
 
   when:
   params.phylogeny == true
-  
+
   script:
   def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
   """
@@ -1427,8 +1465,7 @@ process pairtree_setup {
 //   """
 // }
 
-//3.42
-
+//3.42: pairtree run
 process pairtree_run {
 
   label 'low_mem'
@@ -1470,6 +1507,46 @@ process pairtree_run {
            ${params.runID}.pairtree_${model}_${concn}.results.html
   """
 }
+
+//3.5: Pathseq
+
+process Pathseq {
+
+  label 'high_mem'
+
+  publishDir "${params.outDir}/samples/${sampleID}/pathseq", mode: "copy"
+
+  input:
+  tuple val(type), val(sampleID), val(meta), file(ubam), file(ubai) from pathseqing
+  file(pathseq_refs) from reference.pathseq
+
+  output:
+  file('*') into  pathseq_res
+
+  when:
+  params.microbiome == true
+
+  script:
+  def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
+
+  """
+   gatk ${taskmem} PathSeqPipelineSpark  \
+     --input ${ubam} \
+     --kmer-file ${pathseq_refs}/pathseq_host.bfi \
+     --filter-bwa-image ${pathseq_refs}/pathseq_host.img \
+     --microbe-bwa-image ${pathseq_refs}/pathseq_microbe.fa.img \
+     --microbe-dict ${pathseq_refs}/pathseq_microbe.dict \
+     --taxonomy-file ${pathseq_refs}/pathseq_microbe_taxonomy.db \
+     --min-clipped-read-length 60 \
+     --min-score-identity 0.90 \
+     --identity-margin 0.02 \
+     --scores-output ${sampleID}.pathseq.scores.txt \
+     --output ${sampleID}.pathseq.output_reads.bam \
+     --filter-metrics ${sampleID}.pathseq.filter_metrics.txt \
+     --score-metrics ${sampleID}.pathseq.score_metrics.txt
+  """
+}
+
 /*
 ================================================================================
                           4.  MULTIQC AND CLOSEOUT

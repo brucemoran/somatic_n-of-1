@@ -29,6 +29,7 @@ def helpMessage() {
     --localPCGRdata [str]     local copy of PCGR data bundle to use
     --cosmicUser    [str]     COSMIC login credentials, user email
     --cosmicPass    [str]     COSMIC login credentials, password
+    --microbiome    [bool]    Builds reference for Pathseq microbiome analysis (NB: massive output (100's Gb))
     """.stripIndet()
 }
 
@@ -113,7 +114,7 @@ if(!file("$params.outDir/bwa").exists()){
     tuple val(faval), file(fagz) from fasta
 
     output:
-    tuple file('*.noChr.fasta'), file('*.noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall)
+    tuple file('*.noChr.fasta'), file('*.noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall, fasta_pathseq)
 
     script:
     def fa = "${fagz}".split("\\.gz")[0]
@@ -180,7 +181,7 @@ if(file("$params.outDir/bwa").exists()){
     output:
     file('bwa/*.dict') into dict_win
     tuple file('bwa/*noChr.fasta'), file('bwa/*.fai'), file('bwa/*.dict') into (fasta_dict_exome, fasta_dict_wgs, fasta_dict_gensiz)
-    tuple file('bwa/*.noChr.fasta'), file('bwa/*.noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall)
+    tuple file('bwa/*.noChr.fasta'), file('bwa/*.noChr.fasta.fai') into (fasta_bwa, fasta_seqza, fasta_msi, fasta_dict, fasta_2bit, fasta_exome_biall, fasta_wgs_biall, fasta_pathseq)
     file('bwa/*.noChr.fasta.fai') into fai_gridss
 
     script:
@@ -795,6 +796,54 @@ if(!file("$params.outDir/cosmic").exists()){
     """
   }
 }
+
+/*
+================================================================================
+                          8. PATHSEQ
+================================================================================
+*/
+
+if(!file("$params.outDir/pathseq").exists()){
+
+  process Pathseq_HUMDL {
+
+    publishDir "${params.outDir}/pathseq", mode: 'copy'
+
+    when:
+    params.microbiome
+
+    output:
+    file('*') into psdl_comp
+
+    script:
+    """
+    gsutil -q cp ${params.gsurl38}/pathseq_host.bfi ./
+    gsutil -q cp ${params.gsurl38}/pathseq_host.fa.img ./
+    """
+  }
+
+  process Pathseq_MICDL {
+
+    publishDir "${params.outDir}/pathseq", mode: 'copy'
+
+    when:
+    params.microbiome
+
+    output:
+    file('*') into psmicdl_comp
+
+    script:
+    """
+    gsutil -q cp ${params.gsurl38}/pathseq_microbe_taxonomy.db ./
+    gsutil -q cp ${params.gsurl38}/pathseq_microbe.dict ./
+    gsutil -q cp ${params.gsurl38}/pathseq_microbe.fa ./
+    gsutil -q cp ${params.gsurl38}/pathseq_microbe.fa.img ./
+    """
+  }
+
+}
+
+
 
 /*
 ================================================================================
