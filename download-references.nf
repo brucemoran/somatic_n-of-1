@@ -816,9 +816,10 @@ if(!file("$params.outDir/pathseq").exists()){
     file('*') into psdl_comp
 
     script:
+    def csh = "${params.gsurl38}/CrossSpeciesContamination/CrossSpeciesHuman"
     """
-    gsutil -q cp ${params.gsurl38}/pathseq_host.bfi ./
-    gsutil -q cp ${params.gsurl38}/pathseq_host.fa.img ./
+    gsutil -q cp ${csh}/pathseq_host.bfi ./
+    gsutil -q cp ${csh}/pathseq_host.fa.img ./
     """
   }
 
@@ -833,14 +834,13 @@ if(!file("$params.outDir/pathseq").exists()){
     file('*') into psmicdl_comp
 
     script:
+    def csc = "${params.gsurl38}/CrossSpeciesContamination/CrossSpeciesContaminant"
     """
-    gsutil -q cp ${params.gsurl38}/pathseq_microbe_taxonomy.db ./
-    gsutil -q cp ${params.gsurl38}/pathseq_microbe.dict ./
-    gsutil -q cp ${params.gsurl38}/pathseq_microbe.fa ./
-    gsutil -q cp ${params.gsurl38}/pathseq_microbe.fa.img ./
+    gsutil -q cp ${csc}/pathseq_microbe_taxonomy.db ./
+    gsutil -q cp ${csc}/pathseq_microbe.dict ./
+    gsutil -q cp ${csc}/pathseq_microbe.fa.img ./
     """
   }
-
 }
 
 
