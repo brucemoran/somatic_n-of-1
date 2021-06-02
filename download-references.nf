@@ -816,7 +816,7 @@ if(!file("$params.outDir/pathseq").exists()){
     file('*') into psdl_comp
 
     script:
-    def csh = "${params.gsurl38}/CrossSpeciesContamination/CrossSpeciesHuman"
+    def csh = "gs://gcp-public-data--broad-references/hg38/v0/CrossSpeciesContamination/CrossSpeciesContamination/CrossSpeciesHuman"
     """
     gsutil -q cp ${csh}/pathseq_host.bfi ./
     gsutil -q cp ${csh}/pathseq_host.fa.img ./
@@ -834,7 +834,7 @@ if(!file("$params.outDir/pathseq").exists()){
     file('*') into psmicdl_comp
 
     script:
-    def csc = "${params.gsurl38}/CrossSpeciesContamination/CrossSpeciesContaminant"
+    def csc = "gs://gcp-public-data--broad-references/hg38/v0/CrossSpeciesContamination/CrossSpeciesContamination/CrossSpeciesContaminant"
     """
     gsutil -q cp ${csc}/pathseq_microbe_taxonomy.db ./
     gsutil -q cp ${csc}/pathseq_microbe.dict ./
