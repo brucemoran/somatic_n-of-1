@@ -205,7 +205,7 @@ process ubam {
   def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
   """
   DATE=\$(date +"%Y-%m-%dT%T")
-
+  mkdir tmp
   {
   picard ${taskmem} FastqToSam \
     FASTQ=${read1} \
@@ -217,8 +217,10 @@ process ubam {
     PLATFORM_UNIT=IL_X \
     PLATFORM=ILLUMINA \
     SEQUENCING_CENTER=UCD \
-    RUN_DATE=\$DATE
+    RUN_DATE=\$DATE \
+    TMP_DIR="tmp"
   } 2>&1 | tee > ${sampleID}.FastqToSam.log.txt
+  rm -r tmp
   """
 }
 
