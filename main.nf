@@ -220,6 +220,9 @@ process ubam {
     RUN_DATE=\$DATE \
     TMP_DIR="tmp"
   } 2>&1 | tee > ${sampleID}.FastqToSam.log.txt
+
+  samtools index ${sampleID}.unaligned.bam
+
   rm -r tmp
   """
 }
