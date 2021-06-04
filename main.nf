@@ -1538,7 +1538,7 @@ process Pathseq {
    gatk ${taskmem} PathSeqPipelineSpark  \
      --input ${ubam} \
      --kmer-file ${pathseq_refs}/pathseq_host.bfi \
-     --filter-bwa-image ${pathseq_refs}/pathseq_host.img \
+     --filter-bwa-image ${pathseq_refs}/pathseq_host.fa.img \
      --microbe-bwa-image ${pathseq_refs}/pathseq_microbe.fa.img \
      --microbe-dict ${pathseq_refs}/pathseq_microbe.dict \
      --taxonomy-file ${pathseq_refs}/pathseq_microbe_taxonomy.db \
