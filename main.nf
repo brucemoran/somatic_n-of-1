@@ -139,7 +139,7 @@ reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[par
 
 //setting of intlist based on seqlevel and exomeTag
 reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
-
+reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
 /*
 ================================================================================
                           -0. PREPROCESS INPUT SAMPLE FILE
@@ -514,11 +514,11 @@ process Mosdepth {
   file('*') into mosdepth_multiqc
 
   script:
-  regions=
+  def bed = params.seqlevel == "wgs" ? "${reference.seqlevel}/wgs.bed" : "${reference.seqlevel}/${params.exomeTag}/${params.exomeTag}.bed"
   """
   mosdepth \
     --no-per-base \
-    --by ${intlist} \
+    --by ${bed} \
     ${sampleID} \
     ${bam}
   """
@@ -1590,7 +1590,7 @@ process MultiQC {
   file(multimetrics) from multimetrics_multiqc.collect()
   file(mrkdups) from mrkdup_multiqc.collect()
   file(mosdepth) from mosdepth_multiqc.collect()
-  
+
   output:
   file('*') into completedmultiqc
   file("*.html") into sendmail_multiqc
