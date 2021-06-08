@@ -422,7 +422,7 @@ process gtkrcl {
 
   output:
   file('*.table') into gtkrcl_multiqc
-  tuple val(type), val(sampleID), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into ( germfiltering, gmultimetricing)
+  tuple val(type), val(sampleID), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into ( germfiltering, gmultimetricing, mosdepthing)
   tuple val(type), val(sampleID), val(meta), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into hc_germ
   tuple val(sampleID), val(meta) into metas_pcgr
   file("${sampleID}.GATK4_BQSR.log.txt") into bqsr_log
@@ -501,6 +501,26 @@ process scat_gath {
     grep -v @ mutect2.scatgath.\${COUNTN}.bed.interval_list | \
       cut -f 1,2,3,5 > lancet.scatgath.\${COUNTN}.bed
   done
+  """
+}
+
+process Mosdepth {
+
+  input:
+  tuple val(type), val(sampleID), file(bam), file(bai) from mosdepthing
+  file(intlist) from reference.intlist
+
+  output:
+  file('*') into mosdepth_multiqc
+
+  script:
+  regions=
+  """
+  mosdepth \
+    --no-per-base \
+    --by ${intlist} \
+    ${sampleID} \
+    ${bam}
   """
 }
 /*
@@ -1558,7 +1578,7 @@ process Pathseq {
 ================================================================================
 */
 // 4.0 Run multiQC to finalise report
-process mltiQC {
+process MultiQC {
 
   label 'low_mem'
   publishDir path: "${params.outDir}/reports/multiQC", mode: "copy"
@@ -1569,7 +1589,8 @@ process mltiQC {
   file(gtkrcls) from gtkrcl_multiqc.collect()
   file(multimetrics) from multimetrics_multiqc.collect()
   file(mrkdups) from mrkdup_multiqc.collect()
-
+  file(mosdepth) from mosdepth_multiqc.collect()
+  
   output:
   file('*') into completedmultiqc
   file("*.html") into sendmail_multiqc
