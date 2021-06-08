@@ -139,7 +139,7 @@ reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[par
 
 //setting of intlist, bed based on seqlevel and exomeTag
 reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
-reference.bed = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}/wgs.bed")) : Channel.value(file(params.genomes[params.assembly]."/${params.exomeTag}/${params.exomeTag}.bed"))
+reference.bed = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed").getVal()
 
 /*
 ================================================================================
