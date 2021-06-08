@@ -514,7 +514,7 @@ process Mosdepth {
   file('*') into mosdepth_multiqc
 
   script:
-  def bed = params.seqlevel == "wgs" ? "${reference.seqlevel}/wgs.bed" : "${reference.seqlevel}/${params.exomeTag}/${params.exomeTag}.bed"
+  def bed = params.seqlevel == "wgs" ? reference.seqlevel"/wgs.bed" : reference.seqlevel"/${params.exomeTag}/${params.exomeTag}.bed"
   """
   mosdepth \
     --no-per-base \
