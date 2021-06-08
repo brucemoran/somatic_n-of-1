@@ -137,9 +137,10 @@ reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genome
 //set cosmic
 reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[params.assembly].cosmic)) : null
 
-//setting of intlist based on seqlevel and exomeTag
+//setting of intlist, bed based on seqlevel and exomeTag
 reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
-reference.intlist = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/wgs.bed.interval_list").getVal() : Channel.fromPath("${params.refDir}/${params.assembly}/${params.seqlevel}/${params.exomeTag}.bed.interval_list").getVal()
+reference.bed = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}/wgs.bed")) : Channel.value(file(params.genomes[params.assembly]."/${params.exomeTag}/${params.exomeTag}.bed"))
+
 /*
 ================================================================================
                           -0. PREPROCESS INPUT SAMPLE FILE
@@ -508,13 +509,12 @@ process Mosdepth {
 
   input:
   tuple val(type), val(sampleID), file(bam), file(bai) from mosdepthing
-  file(intlist) from reference.intlist
+  file(bed) from reference.bed
 
   output:
   file('*') into mosdepth_multiqc
 
   script:
-  def bed = params.seqlevel == "wgs" ? reference.seqlevel"/wgs.bed" : reference.seqlevel"/${params.exomeTag}/${params.exomeTag}.bed"
   """
   mosdepth \
     --no-per-base \
