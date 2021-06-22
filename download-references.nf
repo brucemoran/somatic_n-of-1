@@ -757,7 +757,7 @@ if(!file("$params.outDir/gridss").exists()){
 
 if(!file("$params.outDir/cosmic/cancer_gene_census.bed").exists()){
 
-  process cosmic {
+  process cosmic_cgc {
 
     publishDir "${params.outDir}/cosmic", mode: 'copy'
 
@@ -799,7 +799,7 @@ if(!file("$params.outDir/cosmic/cancer_gene_census.bed").exists()){
 
 if(!file("$params.outDir/cosmic/CosmicFusionExport.tsv").exists()){
 
-  process cosmic {
+  process cosmic_fusion {
 
     publishDir "${params.outDir}/cosmic", mode: 'copy'
 
@@ -825,7 +825,7 @@ if(!file("$params.outDir/cosmic/CosmicFusionExport.tsv").exists()){
 
 if(!file("$params.outDir/cosmic/CosmicStructExport.tsv").exists()){
 
-  process cosmic {
+  process cosmic_struct {
 
     publishDir "${params.outDir}/cosmic", mode: 'copy'
 
