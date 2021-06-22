@@ -755,7 +755,7 @@ if(!file("$params.outDir/gridss").exists()){
 ================================================================================
 */
 
-if(!file("$params.outDir/cosmic").exists()){
+if(!file("$params.outDir/cosmic/cancer_gene_census.bed").exists()){
 
   process cosmic {
 
@@ -797,6 +797,57 @@ if(!file("$params.outDir/cosmic").exists()){
   }
 }
 
+if(!file("$params.outDir/cosmic/CosmicFusionExport.tsv").exists()){
+
+  process cosmic {
+
+    publishDir "${params.outDir}/cosmic", mode: 'copy'
+
+    when:
+    params.cosmicUser && params.cosmicPass
+
+    output:
+    file 'CosmicFusionExport.*'
+
+    script:
+    """
+    ##README to show date of download
+    echo \$(date) > CosmicFusionExport-cosmic_dl.README.txt
+
+    ##https://cancer.sanger.ac.uk/cosmic/help/file_download
+    curl -H "Authorization: Basic \$(echo ${params.cosmicUser}:${params.cosmicPass} | base64)" https://cancer.sanger.ac.uk/cosmic/file_download/${params.assembly}/cosmic/${params.cosmicVers}/CosmicFusionExport.tsv.gz > url.txt
+
+    curl -o CosmicFusionExport.tsv.gz \$(cut -d '"' -f4 url.txt)
+    gunzip CosmicFusionExport.tsv.gz
+    """
+  }
+}
+
+if(!file("$params.outDir/cosmic/CosmicStructExport.tsv").exists()){
+
+  process cosmic {
+
+    publishDir "${params.outDir}/cosmic", mode: 'copy'
+
+    when:
+    params.cosmicUser && params.cosmicPass
+
+    output:
+    file 'CosmicStructExport.*'
+
+    script:
+    """
+    ##README to show date of download
+    echo \$(date) > CosmicStructExport-cosmic_dl.README.txt
+
+    ##https://cancer.sanger.ac.uk/cosmic/help/file_download
+    curl -H "Authorization: Basic \$(echo ${params.cosmicUser}:${params.cosmicPass} | base64)" https://cancer.sanger.ac.uk/cosmic/file_download/${params.assembly}/cosmic/${params.cosmicVers}/CosmicStructExport.tsv.gz > url.txt
+
+    curl -o CosmicStructExport.tsv.gz \$(cut -d '"' -f4 url.txt)
+    gunzip CosmicStructExport.tsv.gz
+    """
+  }
+}
 /*
 ================================================================================
                           8. PATHSEQ
