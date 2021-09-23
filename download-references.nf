@@ -473,6 +473,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
 
     output:
     tuple file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz"), file("af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz.tbi") into exome_biallelicgz
+    file("exome.biall.bed") into exome_pcgr_toml
 
     script:
     hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
@@ -501,42 +502,25 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
 }
 
 if(file("$params.outDir/exome/$params.exomeTag").exists()){
-  if(!file("$params.outDir/pcgr").exists()){
-    Channel.fromPath("${params.outDir}/exome/${params.exomeTag}").set { exome_chan }
+  if(!file("$params.outDir/pcgr/data/${params.assemblylc}/pcgr_configuration_${params.exomeTag}.toml").exists()){
+
+    //exome-specific toml
     process send_pcgrtoml_exome {
 
       label 'low_mem'
-
-      input:
-      file(exome_dir) from exome_chan
-
-      output:
-      file('exome.biall.bed') into pcgrtoml_exome
-
-      script:
-      """
-      cut -f 1,2,3 ${exome_dir}/${params.exomeTag}.bed > exome.biall.bed
-      """
-    }
-  }
-  if(file("$params.outDir/pcgr").exists()){
-
-    //exome specific toml
-    process pcgr_toml {
-
-      label 'low_mem'
-      publishDir "${params.outDir}/pcgr", mode: "copy", pattern: "data"
+      publishDir "${params.outDir}/pcgr/data/${params.assemblylc}", mode: "copy"
       errorStrategy 'retry'
       maxRetries 3
 
       input:
-      file(exomebed) from pcgrtoml_exome
+      file(exomebed) from exome_pcgr_toml
 
       output:
       file("pcgr_configuration_${params.exomeTag}.toml") into exome_tomlo
 
       script:
       """
+      cut -f 1,2,3 ${exome_dir}/${params.exomeTag}.bed > exome.biall.bed
       sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
         ${params.outDir}/pcgr/data/${params.assemblylc}/pcgr_configuration_default.toml \
         ${exomebed} ${exometag}
