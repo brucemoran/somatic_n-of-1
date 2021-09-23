@@ -43,7 +43,7 @@ if (params.help) exit 0, helpMessage()
 
 /* 0.0: Global Variables
 */
-params.outDir = "${params.assembly}"
+params.outDir = "${baseDir}/${params.assembly}"
 
 //base URL for GRCh37, 38
 params.gsurl37 = "gs://gatk-legacy-bundles/b37"
