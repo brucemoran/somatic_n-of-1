@@ -132,7 +132,7 @@ reference.pcgrbase = Channel.value(file(params.genomes[params.assembly].pcgr))
 reference.pathseq = Channel.value(file(params.genomes[params.assembly].pathseq))
 
 //if seqlevel is exome, there is a dir per exome already parsed according to exomeTag
-reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}")) : Channel.value(file(params.genomes[params.assembly]."${params.seqlevel}/${params.exomeTag}"))
+reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."/${params.seqlevel}")) : Channel.value(file(params.genomes[params.assembly]."/${params.seqlevel}/${params.exomeTag}"))
 
 //set cosmic
 reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[params.assembly].cosmic)) : null
