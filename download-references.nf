@@ -529,7 +529,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
     """
     sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
       ${params.outDir}/pcgr/data/${params.assemblylc}/pcgr_configuration_default.toml \
-      ${exomebed} ${exometag}
+      ${exomebed} ${params.exomeTag}
     """
   }
 }
