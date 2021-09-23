@@ -132,7 +132,7 @@ reference.pcgrbase = Channel.value(file(params.genomes[params.assembly].pcgr))
 reference.pathseq = Channel.value(file(params.genomes[params.assembly].pathseq))
 
 //if seqlevel is exome, there is a dir per exome already parsed according to exomeTag
-reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly]."/${params.seqlevel}")) : Channel.value(file(params.genomes[params.assembly]."/${params.seqlevel}/${params.exomeTag}"))
+reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly].wgs)) : Channel.value(file(params.genomes[params.assembly].exome))
 
 //set cosmic
 reference.cosmic = params.cosmic == true ? Channel.value(file(params.genomes[params.assembly].cosmic)) : null
@@ -1056,7 +1056,7 @@ process mutct2_contam_filter {
   script:
   def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
   hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
-  gpsgz = params.seqlevel == "exome" ? "${gps_files}/af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz" : "${gps_files}/af-only-gnomad.wgs.${hg}.noChr.vcf.gz"
+  gpsgz = params.seqlevel == "exome" ? "${gps_files}/${params.exomeTag}/af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz" : "${gps_files}/af-only-gnomad.wgs.${hg}.noChr.vcf.gz"
   """
   gatk ${taskmem} \
     GetPileupSummaries \
@@ -1118,7 +1118,7 @@ process mntstr {
   file('*.txt') into log_mantastrelka
 
   script:
-  def bedgz = params.seqlevel == "wgs" ? "${bed_files}/wgs.bed.gz" : "${bed_files}/${params.exomeTag}.bed.gz"
+  def bedgz = params.seqlevel == "wgs" ? "${bed_files}/wgs.bed.gz" : "${bed_files}/${params.exomeTag}/${params.exomeTag}.bed.gz"
   def callRegions = params.seqlevel == "exome" ? "--exome --callRegions ${bedgz}" : "--callRegions ${bedgz}"
   """
   {
@@ -1391,7 +1391,7 @@ process pcgrreport {
 
   script:
   grch_vers = "${grchver}".split("\\/")[-1]
-  config = params.seqlevel == "exome" ? "${exomebase}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml"
+  config = params.seqlevel == "exome" ? "${exomebase}/${params.exomeTag}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml"
   assay = params.seqlevel == "exome" ? "WES" : "WGS"
   """
   {
