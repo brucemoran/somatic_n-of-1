@@ -514,9 +514,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
   process pcgr_toml_exome {
 
     label 'low_mem'
-    publishDir "${params.outDir}/pcgr/data/${params.assemblylc}", mode: "copy"
-    errorStrategy 'retry'
-    maxRetries 3
+    publishDir "${params.outDir}/exome/${params.exomeTag}", mode: "copy"
 
     input:
     file(exomebed) from exome_pcgr_toml

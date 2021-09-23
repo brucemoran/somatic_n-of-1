@@ -1383,6 +1383,7 @@ process pcgrreport {
   tuple val(sampleID), file(vcf), val(meta), file(jointsegs), file(ploidpur) from pcgr_inputs
   file(grchver) from reference.grchvers
   file(pcgrbase) from reference.pcgrbase
+  file(exomebase) from reference.seqlevel
 
   output:
   file('*') into completed_pcgr
@@ -1390,7 +1391,7 @@ process pcgrreport {
 
   script:
   grch_vers = "${grchver}".split("\\/")[-1]
-  config = params.seqlevel == "exome" ? "${pcgrbase}/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml"
+  config = params.seqlevel == "exome" ? "${exomebase}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_wgs.toml"
   assay = params.seqlevel == "exome" ? "WES" : "WGS"
   """
   {
