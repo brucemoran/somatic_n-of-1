@@ -150,7 +150,7 @@ if(!file("$params.outDir/bwa").exists()){
     file(fai) into fai_gridss
 
     script:
-    def dict = "${fa}".replace('fasta', 'dict')
+    dict = "${fa}".replace('fasta', 'dict')
     """
     picard CreateSequenceDictionary \
       R=${fa} \
