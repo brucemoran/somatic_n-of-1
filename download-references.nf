@@ -71,6 +71,12 @@ if(!params.exomeTag){
   }
 }
 
+//param to specify if PCGR data exists yet
+params.pcgrdata = false
+if(!file("$params.outDir/pcgr/data/${params.assemblylc}").exists()){
+  params.pcgrdata = true
+}
+
 /*
 ================================================================================
                           1. FASTA REFERENCES
@@ -499,33 +505,30 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
       tabix af-only-gnomad.${params.exomeTag}.${hg}.noChr.vcf.gz
       """
   }
-}
 
-if(file("$params.outDir/exome/$params.exomeTag").exists()){
-  if(!file("$params.outDir/pcgr/data/${params.assemblylc}/pcgr_configuration_${params.exomeTag}.toml").exists()){
+  //exome-specific toml
+  process pcgrtoml_exome {
 
-    //exome-specific toml
-    process send_pcgrtoml_exome {
+    label 'low_mem'
+    publishDir "${params.outDir}/pcgr/data/${params.assemblylc}", mode: "copy"
+    errorStrategy 'retry'
+    maxRetries 3
 
-      label 'low_mem'
-      publishDir "${params.outDir}/pcgr/data/${params.assemblylc}", mode: "copy"
-      errorStrategy 'retry'
-      maxRetries 3
+    input:
+    file(exomebed) from exome_pcgr_toml
 
-      input:
-      file(exomebed) from exome_pcgr_toml
+    output:
+    file("pcgr_configuration_${params.exomeTag}.toml") into exome_tomlo
 
-      output:
-      file("pcgr_configuration_${params.exomeTag}.toml") into exome_tomlo
+    when:
+    params.pcgrdata
 
-      script:
-      """
-      cut -f 1,2,3 ${exome_dir}/${params.exomeTag}.bed > exome.biall.bed
-      sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
-        ${params.outDir}/pcgr/data/${params.assemblylc}/pcgr_configuration_default.toml \
-        ${exomebed} ${exometag}
-      """
-    }
+    script:
+    """
+    sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
+      ${params.outDir}/pcgr/data/${params.assemblylc}/pcgr_configuration_default.toml \
+      ${exomebed} ${exometag}
+    """
   }
 }
 
