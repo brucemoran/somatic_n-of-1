@@ -519,6 +519,30 @@ if(file("$params.outDir/exome/$params.exomeTag").exists()){
       """
     }
   }
+  if(file("$params.outDir/pcgr").exists()){
+
+    //exome specific toml
+    process pcgr_toml {
+
+      label 'low_mem'
+      publishDir "${params.outDir}/pcgr", mode: "copy", pattern: "data"
+      errorStrategy 'retry'
+      maxRetries 3
+
+      input:
+      file(exomebed) from pcgrtoml_exome
+
+      output:
+      file("pcgr_configuration_${params.exomeTag}.toml") into exome_tomlo
+
+      script:
+      """
+      sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
+        ${params.outDir}/pcgr/data/${params.assemblylc}/pcgr_configuration_default.toml \
+        ${exomebed} ${exometag}
+      """
+    }
+  }
 }
 
 /*
