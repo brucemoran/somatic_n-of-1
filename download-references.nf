@@ -17,7 +17,7 @@ def helpMessage() {
                               batch_somatic pipelines to select relevant exome
                               data (default: the first element when exome file
                               name is split on '.')
-    --outDir        [str]     directory to save output (an <assebmbly> dir
+    --outputDir        [str]     directory to save output (an <assebmbly> dir
                               is created therein)
 
     one of:
@@ -45,7 +45,7 @@ if (params.help) exit 0, helpMessage()
 
 /* 0.0: Global Variables
 */
-params.outDir = "${params.outDir}/${params.assembly}"
+params.outDir = "${params.outputDir}/${params.assembly}"
 
 //base URL for GRCh37, 38
 params.gsurl37 = "gs://gatk-legacy-bundles/b37"
