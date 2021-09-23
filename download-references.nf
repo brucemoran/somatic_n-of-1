@@ -72,9 +72,11 @@ if(!params.exomeTag){
 }
 
 //param to specify if PCGR data exists yet
-params.pcgrdata = false
 if(file("$params.outDir/pcgr/data/${params.assemblylc}").exists()){
   params.pcgrdata = true
+}
+else {
+  params.pcgrdata = false
 }
 
 /*
