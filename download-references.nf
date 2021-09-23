@@ -511,7 +511,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
   }
 
   //exome-specific toml
-  process pcgrtoml_exome {
+  process pcgr_toml_exome {
 
     label 'low_mem'
     publishDir "${params.outDir}/pcgr/data/${params.assemblylc}", mode: "copy"
