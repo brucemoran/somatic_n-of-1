@@ -439,7 +439,7 @@ if(!file("$params.outDir/exome/$params.exomeTag").exists()){
 
     output:
     file("${params.exomeTag}.bed.interval_list") into complete_exome
-    file("${params.exomeTag}.bed") into ( exome_biallgz, pcgrtoml_exome )
+    file("${params.exomeTag}.bed") into exome_biallgz
     tuple file("${params.exomeTag}.bed.gz"), file("${params.exomeTag}.bed.gz.tbi") into gztbi_exome
 
     script:
@@ -664,7 +664,6 @@ if(!file("$params.outDir/pcgr").exists()){
     maxRetries 3
 
     input:
-    file(exomebed) from pcgrtoml_exome
     file(wgsbed) from pcgrtoml_wgs
     file(tgz) from pcgr_data
 
@@ -675,12 +674,6 @@ if(!file("$params.outDir/pcgr").exists()){
     exometag = params.exomeTag == null ? "" : "${params.exomeTag}"
     """
     tar -xf ${tgz} -C ./
-
-    ##allows editting of TOML for WGS and exome if supplied
-    sh ${workflow.projectDir}/bin/pcgr_edit_toml.sh \
-      data/${params.assemblylc}/pcgr_configuration_default.toml \
-      ${exomebed} ${exometag}
-    mv pcgr_configuration*.toml data/${params.assemblylc}/
 
     ##build VEP cache using Singularity container 'vep_install' script
     ##however PCGR installs a version of vep cache, so test that matches required assembly, and only install if not
