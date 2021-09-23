@@ -98,7 +98,7 @@ if(!file("$params.outDir/bwa").exists()){
     tuple val(faval), file('*.fasta.gz') into fasta
 
     script:
-    def faval = params.assemblylc == 'grch37' ? 'human_g1k_v37' : 'GRCh38_Verily_v1.genome'
+    faval = params.assemblylc == 'grch37' ? 'human_g1k_v37' : 'GRCh38_Verily_v1.genome'
     if( params.assemblylc == 'grch37' )
       """
       ##http://lh3.github.io/2017/11/13/which-human-reference-genome-to-use
