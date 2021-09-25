@@ -740,7 +740,7 @@ process cpsrreport {
   file("${metaid}.cpsr.${grchv}.html") into sendmail_cpsr
 
   script:
-  def grchv = "${grchver}".split("\\/")[-1]
+  grchv = "${grchver}".split("\\/")[-1]
   metaid = "${meta}".replaceAll("\\s *", "_").replaceAll("[()]","")
   """
   {
