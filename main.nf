@@ -737,14 +737,13 @@ process cpsrreport {
 
   output:
   file('*') into cpsr_vcfs
-  file("*.html") into sendmail_cpsr
+  file("${metaid}.cpsr.${grchv}.html") into sendmail_cpsr
 
   script:
   def grchv = "${grchver}".split("\\/")[-1]
+  metaid = "${meta}".replaceAll("\\s *", "_").replaceAll("[()]","")
   """
   {
-  META=\$(echo ${meta} | sed 's/\\s */_/g' | sed 's/[()]//g')
-
   ##CPSR v0.6.1
   cpsr.py \
     --no-docker \
@@ -755,7 +754,7 @@ process cpsrreport {
     --output_dir ./ \
     --genome_assembly ${grchv} \
     --conf ${pcgrbase}/data/${grchv}/cpsr_configuration_default.toml \
-    --sample_id \$META
+    --sample_id ${metaid}
   } 2>&1 | tee > ${sampleID}.cpsr.log.txt
   """
 }
