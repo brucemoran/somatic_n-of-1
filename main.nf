@@ -1654,7 +1654,7 @@ process pcgr_software_vers {
   """
 }
 // 4.19: ZIP for sending on sendmail
-sendmail_pcgr.mix(sendmail_multiqc).set { sendmail_all }
+sendmail_pcgr.mix(sendmail_multiqc).mix(sendmail_cpsr).set { sendmail_all }
 
 process zipup {
 
