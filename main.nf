@@ -635,8 +635,7 @@ process germCnvkit {
   cnvkit.py segment ${sampleID}.cnr -o ${sampleID}.cns
 
   #call
-  cnvkit.py segmetrics -s ${sampleID}.cn{s,r} --ci
-  cnvkit.py call ${sampleID}.cns -o ${sampleID}.call.cns --filter ci
+  cnvkit.py call ${sampleID}.cns -o ${sampleID}.call.cns 
 
   # Optionally, with --scatter and --diagram
   cnvkit.py scatter ${sampleID}.cnr -s ${sampleID}.cns -o ${sampleID}-scatter.pdf
