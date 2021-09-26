@@ -594,7 +594,7 @@ hc_gt
 /* 2.0.5: GATK germline CNV
 */
 
-process gatkCNV {
+process germCnvkit {
 
   publishDir path: "${params.outDir}/samples/${sampleID}/cnvkit", mode: "copy"
   label 'med_mem'
@@ -609,7 +609,7 @@ process gatkCNV {
   file(bed) from reference.bed
 
   output:
-  file('*') into hc_gt
+  file('*') into germCnvkit_comp
 
   when:
   type == "germline" & params.germline != false
