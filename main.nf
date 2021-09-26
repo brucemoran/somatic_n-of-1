@@ -1776,7 +1776,7 @@ process zipup {
   """
   mkdir reports && mv *html ./reports/
   mkdir combined && mv *pdf ./combined/
-  zip ${params.runID}.somatic_n-of-1.zip *
+  zip -r ${params.runID}.somatic_n-of-1.zip *
   """
 }
 
