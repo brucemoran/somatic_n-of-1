@@ -590,6 +590,59 @@ hc_gt
   .map { it -> tuple(it[0], it[1..-1].flatten()) }
   .set { hc_fm }
 
+/* 2.0.5: GATK germline CNV
+*/
+
+process gatkCNV {
+
+  label 'med_mem'
+  errorStrategy 'retry'
+  maxRetries 3
+
+  input:
+  tuple val(type), val(sampleID), val(meta), file(bam), file(bai), file(intlist) from cnvgermbedding
+  file(fasta) from reference.fa
+  file(fai) from reference.fai
+  file(dict) from reference.dict
+  file(intlist) from reference.intlist
+  file(hc_dbs_files) from reference.hc_dbs
+  file(bed) from reference.bed
+
+  output:
+  tuple val(sampleID), file('*sort.hc.vcf') into hc_gt
+  tuple val(sampleID), val(meta) into hc_mv
+  val(sampleID) into ( gridssgermID, vcfGRaID )
+
+  when:
+  type == "germline" & params.germline != false
+
+  script:
+  def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
+  def dbsnp = "${dbsnp_files}/*gz"
+  def omni = "${hc_dbs_files}/KG_omni*.gz"
+  def kgp1 = "${hc_dbs_files}/KG_phase1*.gz"
+  def hpmp = "${hc_dbs_files}/hapmap*.gz"
+  """
+  cnvkit.py access ${fasta} -o access.bed
+  cnvkit.py autobin ${bam} -t ${bed} -g access.bed [--annotate refFlat.txt --short-names]
+
+  # For each sample...
+  cnvkit.py coverage Sample.bam baits.target.bed -o Sample.targetcoverage.cnn
+  cnvkit.py coverage Sample.bam baits.antitarget.bed -o Sample.antitargetcoverage.cnn
+
+  # With all normal samples...
+  cnvkit.py reference *Normal.{,anti}targetcoverage.cnn --fasta hg19.fa -o my_reference.cnn
+
+  # For each tumor sample...
+  cnvkit.py fix Sample.targetcoverage.cnn Sample.antitargetcoverage.cnn my_reference.cnn -o Sample.cnr
+  cnvkit.py segment Sample.cnr -o Sample.cns
+
+  # Optionally, with --scatter and --diagram
+  cnvkit.py scatter Sample.cnr -s Sample.cns -o Sample-scatter.pdf
+  cnvkit.py diagram Sample.cnr -s Sample.cns -o Sample-diagram.pdf
+
+  """
+}
 /* 2.1.1: GRIDSS SV calling in WGS
 * because we do not know order or number of samples, create tuple with
 * dummy as first and all others as list of elements

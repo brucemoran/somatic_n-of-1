@@ -193,7 +193,7 @@ dependencies:
   - pandoc=2.13=h7f98852_0
   - pango=1.42.4=h7062337_4
   - pbzip2=1.1.13=0
-  - pcgr=0.9.0.2=py37r40_0
+  - pcgr=0.9.1
   - pcre=8.44=he1b5a44_0
   - pcre2=10.35=h032f7d1_2
   - perl=5.26.2=h36c2ea0_1008

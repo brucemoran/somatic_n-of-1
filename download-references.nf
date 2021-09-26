@@ -900,6 +900,30 @@ if(!file("$params.outDir/pathseq").exists()){
   }
 }
 
+/*
+================================================================================
+                          9. REFFLAT
+================================================================================
+*/
+
+if(!file("$params.outDir/refflat").exists()){
+
+  process refFlats {
+
+    publishDir "${params.outDir}/refflat", mode: 'copy'
+
+    output:
+    file('*') into refflats_comp
+
+    script:
+    """
+    wget -O refFlat.GRCh19.txt.gz http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refFlat.txt.gz
+    gunzip refFlat.GRCh37.txt.gz
+    wget -O refFlat.GRCh38.txt.gz http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refFlat.txt.gz
+    gunzip refFlat.GRCh38.txt.gz
+    """
+  }
+}
 
 
 /*
