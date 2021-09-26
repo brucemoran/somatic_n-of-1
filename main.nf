@@ -1487,7 +1487,7 @@ process pcgrreport {
 
   output:
   file('*') into completed_pcgr
-  file("*.html") into sendmail_pcgr
+  file("*.pcgr_acmg.${grch_vers}.html") into sendmail_pcgr
 
   script:
   grch_vers = "${grchver}".split("\\/")[-1]
