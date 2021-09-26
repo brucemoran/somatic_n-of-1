@@ -635,7 +635,7 @@ process germCnvkit {
   cnvkit.py segment ${sampleID}.cnr -o ${sampleID}.cns
 
   #call
-  cnvkit.py call ${sampleID}.cns -o ${sampleID}.call.cns 
+  cnvkit.py call ${sampleID}.cns -o ${sampleID}.call.cns
 
   # Optionally, with --scatter and --diagram
   cnvkit.py scatter ${sampleID}.cnr -s ${sampleID}.cns -o ${sampleID}-scatter.pdf
@@ -764,7 +764,7 @@ process hc_merge {
   tuple val(sampleID), val(meta) from hc_mv
 
   output:
-  tuple val(sampleID), val(meta), file("${sampleID}.hc.merge.vcf.gz"), file("${sampleID}.hc.merge.vcf.gz.tbi") into cpsr_vcf
+  tuple val(sampleID), val(meta), file("${sampleID}.hc.merge.vcf.gz"), file("${sampleID}.hc.merge.vcf.gz.tbi") into ( cpsr_vcf, vep_hc_vcf )
 
   script:
   """
@@ -1296,7 +1296,53 @@ process lancet_filter {
                           3.  ANNOTATION AND REPORTING
 ================================================================================
 */
-// 3.0: Annotate Vcfs
+
+// 3.01: HC_merge VEP
+process vepHC {
+
+  label 'low_mem'
+
+  publishDir path: "${params.outDir}/samples/${sampleID}/haplotypecaller", mode: "copy"
+
+  input:
+  tuple val(caseID), val(sampleID), file(vcf), file(tbi) from vep_hc_vcf
+  file(fasta) from reference.fa
+  file(fai) from reference.fai
+  file(dict) from reference.dict
+  file(grchver) from reference.grchvers
+  file(pcgrbase) from reference.pcgrbase
+
+  output:
+  file("${sampleID}.hc.merge.vep.vcf") into hc_vepd
+
+  script:
+  grch_vers = "${grchver}".split("\\/")[-1]
+  """
+  vep --dir_cache ${pcgrbase}/data/${grch_vers}/.vep \
+    --offline \
+    --assembly ${params.assembly} \
+    --vcf_info_field ANN \
+    --symbol \
+    --species homo_sapiens \
+    --check_existing \
+    --cache \
+    --fork ${task.cpus} \
+    --af_1kg \
+    --af_gnomad \
+    --vcf \
+    --input_file ${vcf} \
+    --output_file ${sampleID}.hc.merge.vep.vcf \
+    --format "vcf" \
+    --fasta ${fasta} \
+    --hgvs \
+    --canonical \
+    --ccds \
+    --force_overwrite \
+    --verbose
+  """
+}
+
+// 3.02: Annotate Vcfs
 ALLVCFS = lancet_veping
           .mix( mutect2_veping )
           .mix( strelka2_veping )
