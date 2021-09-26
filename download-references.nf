@@ -918,10 +918,10 @@ if(!file("$params.outDir/refflat").exists()){
     script:
     """
     wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refFlat.txt.gz
-    gunzip -c refFlat.txt.gz > refFlat.GRCh37.txt
+    gunzip -c refFlat.txt.gz | sed 's/chr//g' > refFlat.GRCh37.txt
     rm refFlat.txt.gz
     wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refFlat.txt.gz
-    gunzip -c refFlat.txt.gz > refFlat.GRCh38.txt
+    gunzip -c refFlat.txt.gz | sed 's/chr//g' > refFlat.GRCh38.txt
     rm refFlat.txt.gz
     """
   }
