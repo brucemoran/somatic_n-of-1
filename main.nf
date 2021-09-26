@@ -602,7 +602,7 @@ process germCnvkit {
   maxRetries 3
 
   input:
-  tuple val(type), val(sampleID), val(meta), file(bam), file(bai), file(intlist) from cnvgerm
+  tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from cnvgerm
   file(fasta) from reference.fa
   file(fai) from reference.fai
   file(refflat) from reference.refflat
