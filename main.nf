@@ -947,6 +947,7 @@ process fctcon {
   file('*') into complete_facets
   file(filesn) into pairtee_facets
   file("${params.runID}.ENS.facets.CNA.master.tsv") into pairtree_facet
+  file('*.pdf') into sendmail_facets
 
   script:
   if( !params.cosmic )
@@ -1423,6 +1424,7 @@ process vcfGRa {
   output:
   file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
   file('*') into completedvcfGRangesConsensus
+  file('*.pdf') into sendmail_vcfGRa
 
   script:
   def inc_ord = params.incOrder ? params.incOrder : "noord"
@@ -1753,7 +1755,12 @@ process pcgr_software_vers {
   """
 }
 // 4.19: ZIP for sending on sendmail
-sendmail_pcgr.mix(sendmail_multiqc).mix(sendmail_cpsr).set { sendmail_all }
+sendmail_pcgr
+  .mix(sendmail_multiqc)
+  .mix(sendmail_cpsr)
+  .mix(sendmail_vcfGRa)
+  .mix(sendmail_facets)
+  .set { sendmail_all }
 
 process zipup {
 
@@ -1767,6 +1774,8 @@ process zipup {
 
   script:
   """
+  mkdir reports && mv *html ./reports
+  mkdir combined && mv *pdf ./combined
   zip ${params.runID}.somatic_n-of-1.zip *.html
   """
 }
