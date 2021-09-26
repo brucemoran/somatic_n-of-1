@@ -130,6 +130,7 @@ reference.dbsnp = Channel.value(file(params.genomes[params.assembly].dbsnp))
 reference.gridss = Channel.value(file(params.genomes[params.assembly].gridss))
 reference.pcgrbase = Channel.value(file(params.genomes[params.assembly].pcgr))
 reference.pathseq = Channel.value(file(params.genomes[params.assembly].pathseq))
+reference.refflat = Channel.value(file(params.genomes[params.assembly].refflat))
 
 //if seqlevel is exome, there is a dir per exome already parsed according to exomeTag
 reference.seqlevel = params.seqlevel == "wgs" ? Channel.value(file(params.genomes[params.assembly].wgs)) : Channel.value(file(params.genomes[params.assembly].exome))
@@ -424,7 +425,7 @@ process gtkrcl {
   output:
   file('*.table') into gtkrcl_multiqc
   tuple val(type), val(sampleID), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into ( germfiltering, gmultimetricing, mosdepthing)
-  tuple val(type), val(sampleID), val(meta), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into hc_germ
+  tuple val(type), val(sampleID), val(meta), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into ( hc_germ, cnvgerm )
   tuple val(sampleID), val(meta) into metas_pcgr
   file("${sampleID}.GATK4_BQSR.log.txt") into bqsr_log
 
@@ -595,54 +596,52 @@ hc_gt
 
 process gatkCNV {
 
+  publishDir path: "${params.outDir}/samples/${sampleID}/cnvkit", mode: "copy"
   label 'med_mem'
   errorStrategy 'retry'
   maxRetries 3
 
   input:
-  tuple val(type), val(sampleID), val(meta), file(bam), file(bai), file(intlist) from cnvgermbedding
+  tuple val(type), val(sampleID), val(meta), file(bam), file(bai), file(intlist) from cnvgerm
   file(fasta) from reference.fa
   file(fai) from reference.fai
-  file(dict) from reference.dict
-  file(intlist) from reference.intlist
-  file(hc_dbs_files) from reference.hc_dbs
+  file(refflat) from reference.refflat
   file(bed) from reference.bed
 
   output:
-  tuple val(sampleID), file('*sort.hc.vcf') into hc_gt
-  tuple val(sampleID), val(meta) into hc_mv
-  val(sampleID) into ( gridssgermID, vcfGRaID )
+  file('*') into hc_gt
 
   when:
   type == "germline" & params.germline != false
 
   script:
-  def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
-  def dbsnp = "${dbsnp_files}/*gz"
-  def omni = "${hc_dbs_files}/KG_omni*.gz"
-  def kgp1 = "${hc_dbs_files}/KG_phase1*.gz"
-  def hpmp = "${hc_dbs_files}/hapmap*.gz"
   """
   cnvkit.py access ${fasta} -o access.bed
-  cnvkit.py autobin ${bam} -t ${bed} -g access.bed [--annotate refFlat.txt --short-names]
+  cnvkit.py autobin ${bam} -t ${bed} -g access.bed --annotate ${refflat} --short-names
 
   # For each sample...
-  cnvkit.py coverage Sample.bam baits.target.bed -o Sample.targetcoverage.cnn
-  cnvkit.py coverage Sample.bam baits.antitarget.bed -o Sample.antitargetcoverage.cnn
+  cnvkit.py coverage ${bam} baits.target.bed -o ${sampleID}.targetcoverage.cnn
+  cnvkit.py coverage ${bam} baits.antitarget.bed -o ${sampleID}.antitargetcoverage.cnn
 
-  # With all normal samples...
-  cnvkit.py reference *Normal.{,anti}targetcoverage.cnn --fasta hg19.fa -o my_reference.cnn
+  # reference
+  cnvkit.py reference *coverage.cnn -f ${fasta} -o reference.cnn
 
-  # For each tumor sample...
-  cnvkit.py fix Sample.targetcoverage.cnn Sample.antitargetcoverage.cnn my_reference.cnn -o Sample.cnr
-  cnvkit.py segment Sample.cnr -o Sample.cns
+  # cnr
+  cnvkit.py fix ${sampleID}.targetcoverage.cnn ${sampleID}.antitargetcoverage.cnn reference.cnn -o ${sampleID}.cnr
+
+  # cns
+  cnvkit.py segment ${sampleID}.cnr -o ${sampleID}.cns
+
+  #call
+  cnvkit.py segmetrics -s ${sampleID}.cn{s,r} --ci
+  cnvkit.py call ${sampleID}.cns -o ${sampleID}.call.cns --filter ci
 
   # Optionally, with --scatter and --diagram
-  cnvkit.py scatter Sample.cnr -s Sample.cns -o Sample-scatter.pdf
-  cnvkit.py diagram Sample.cnr -s Sample.cns -o Sample-diagram.pdf
-
+  cnvkit.py scatter ${sampleID}.cnr -s ${sampleID}.cns -o ${sampleID}-scatter.pdf
+  cnvkit.py diagram ${sampleID}.cnr -s ${sampleID}.cns -o ${sampleID}-diagram.pdf
   """
 }
+
 /* 2.1.1: GRIDSS SV calling in WGS
 * because we do not know order or number of samples, create tuple with
 * dummy as first and all others as list of elements
