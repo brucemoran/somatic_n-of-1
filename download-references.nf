@@ -917,10 +917,12 @@ if(!file("$params.outDir/refflat").exists()){
 
     script:
     """
-    wget -o refFlat.GRCh37.txt.gz http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refFlat.txt.gz
-    gunzip refFlat.GRCh37.txt.gz
-    wget -o refFlat.GRCh38.txt.gz http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refFlat.txt.gz
-    gunzip refFlat.GRCh38.txt.gz
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refFlat.txt.gz
+    gunzip -c refFlat.txt.gz > refFlat.GRCh37.txt
+    rm refFlat.txt.gz
+    wget http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refFlat.txt.gz
+    gunzip -c refFlat.txt.gz > refFlat.GRCh38.txt
+    rm refFlat.txt.gz
     """
   }
 }
