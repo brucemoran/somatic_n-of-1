@@ -1305,7 +1305,7 @@ process vepHC {
   publishDir path: "${params.outDir}/samples/${sampleID}/haplotypecaller", mode: "copy"
 
   input:
-  tuple val(caseID), val(sampleID), file(vcf), file(tbi) from vep_hc_vcf
+  tuple val(sampleID), val(meta), file(vcf), file(tbi) from vep_hc_vcf
   file(fasta) from reference.fa
   file(fai) from reference.fai
   file(dict) from reference.dict
