@@ -618,10 +618,12 @@ process germCnvkit {
   """
   cnvkit.py access ${fasta} -o access.bed
   cnvkit.py autobin ${bam} -t ${bed} -g access.bed --annotate ${refflat} --short-names
+  BATARG=\$(echo ${bed} | sed 's/bed/target.bed/')
+  BAATRG=\$(echo ${bed} | sed 's/bed/antitarget.bed/')
 
   # For each sample...
-  cnvkit.py coverage ${bam} baits.target.bed -o ${sampleID}.targetcoverage.cnn
-  cnvkit.py coverage ${bam} baits.antitarget.bed -o ${sampleID}.antitargetcoverage.cnn
+  cnvkit.py coverage ${bam} \$BATARG -o ${sampleID}.targetcoverage.cnn
+  cnvkit.py coverage ${bam} \$BAATRG -o ${sampleID}.antitargetcoverage.cnn
 
   # reference
   cnvkit.py reference *coverage.cnn -f ${fasta} -o reference.cnn
