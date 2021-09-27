@@ -794,7 +794,7 @@ process cpsrreport {
 
   script:
   grchv = "${grchver}".split("\\/")[-1]
-  metaid = "${meta}".replaceAll("\\s *", "_").replaceAll("\[()\]","").replaceAll("\"","")
+  metaid = "${meta}".replaceAll("\\s *", "_").replaceAll("[\\[\\(\\)\\]]","").replaceAll("\"","")
   """
   {
   ##CPSR v0.6.1
