@@ -587,7 +587,7 @@ process haplotypecaller {
 //group those outputs
 hc_gt
   .groupTuple()
-  .map { it -> tuple(it[0], it[1]unique(), it[2..-1].flatten()) }
+  .map { it -> tuple(it[0], it[1].unique(), it[2..-1].flatten()) }
   .set { hc_fm }
 
 /* 2.0.5: GATK germline CNV
