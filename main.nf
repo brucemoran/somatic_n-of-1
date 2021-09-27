@@ -556,7 +556,8 @@ process haplotypecaller {
   val(sampleID) into ( gridssgermID, vcfGRaID )
 
   when:
-  type == "germline" type == "germsoma"| & params.germline != false
+  type == "germline" & params.germline != false \
+   | type == "germsoma" & params.germline != false
 
   script:
   def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
@@ -611,7 +612,8 @@ process germCnvkit {
   file('*') into germCnvkit_comp
 
   when:
-  type == "germline" | type == "germsoma" & params.germline != false
+  type == "germline" & params.germline != false \
+   | type == "germsoma" & params.germline != false
 
   script:
   """
