@@ -552,8 +552,7 @@ process haplotypecaller {
   file(hc_dbs_files) from reference.hc_dbs
 
   output:
-  tuple val(sampleID), file('*sort.hc.vcf') into hc_gt
-  tuple val(sampleID), val(meta) into hc_mv
+  tuple val(sampleID), val(meta), file('*sort.hc.vcf') into hc_gt
   val(sampleID) into ( gridssgermID, vcfGRaID )
 
   when:
@@ -588,7 +587,7 @@ process haplotypecaller {
 //group those outputs
 hc_gt
   .groupTuple()
-  .map { it -> tuple(it[0], it[1..-1].flatten()) }
+  .map { it -> tuple(it[0], it[1], it[2..-1].flatten()) }
   .set { hc_fm }
 
 /* 2.0.5: GATK germline CNV
@@ -648,109 +647,111 @@ process germCnvkit {
 * dummy as first and all others as list of elements
 * then count them inside process
 */
-gridssing
-  .collect()
-  .map { it -> tuple(it.flatten()) }
-  .set { gridssin }
+if(!params.allGermline){
+  gridssing
+    .collect()
+    .map { it -> tuple(it.flatten()) }
+    .set { gridssin }
 
-process gridss {
+  process gridss {
 
-  label 'max_mem'
-  publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
+    label 'max_mem'
+    publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[!bam, vcf.gz]"
 
-  input:
-  file(listbams) from gridssin
-  val(germlineID) from gridssgermID.collect().flatten().unique()
-  file(bwa) from reference.bwa
-  file(gridss_files) from reference.gridss
+    input:
+    file(listbams) from gridssin
+    val(germlineID) from gridssgermID.collect().flatten().unique()
+    file(bwa) from reference.bwa
+    file(gridss_files) from reference.gridss
 
-  output:
-  file('*') into completegridss
-  tuple val(germlineID), file("tumords.txt"), file("${params.runID}.output.vcf.gz") into gridssfilter
+    output:
+    file('*') into completegridss
+    tuple val(germlineID), file("tumords.txt"), file("${params.runID}.output.vcf.gz") into gridssfilter
 
-  when:
-  params.seqlevel == "wgs"
+    when:
+    params.seqlevel == "wgs"
 
-  script:
-  def jvmheap_taskmem = task.memory == null ? "" : "--jvmheap " + javaTaskmem("${task.memory}")
-  def fasta = "${bwa}/*fasta"
-  def gridss_blacklist = "${gridss_files}/gridss_blacklist.noChr.bed"
-  def gridss_props = "${gridss_files}/dbs/gridss/gridss.properties"
-  """
-  GERMLINEBAM=\$(ls | grep ${germlineID} | grep bam\$ | grep -v bai)
-  BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
-  LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | grep -v assembly | cut -d "." -f1) | sed 's/\\s */,/g')
-  TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
-  TASKCPUS=\$(( ${task.cpus} / 4 )) ##"preprocessing will use up to 200-300% CPU per thread"
-  echo \$TUMORDS > tumords.txt
+    script:
+    def jvmheap_taskmem = task.memory == null ? "" : "--jvmheap " + javaTaskmem("${task.memory}")
+    def fasta = "${bwa}/*fasta"
+    def gridss_blacklist = "${gridss_files}/gridss_blacklist.noChr.bed"
+    def gridss_props = "${gridss_files}/dbs/gridss/gridss.properties"
+    """
+    GERMLINEBAM=\$(ls | grep ${germlineID} | grep bam\$ | grep -v bai)
+    BAMFILES=\$(echo -n \$GERMLINEBAM" "\$(ls *.bam | grep -v \$GERMLINEBAM))
+    LABELS=\$(echo -n ${germlineID}" "\$(ls *bam | grep -v ${germlineID} | grep -v assembly | cut -d "." -f1) | sed 's/\\s */,/g')
+    TUMORDS=\$(echo \$LABELS | perl -ane '@s=split(/\\,/);for(\$i=2;\$i<=@s;\$i++){push(@o,\$i);} print join(",",@o[0..\$#o]) . "\\n";')
+    TASKCPUS=\$(( ${task.cpus} / 4 )) ##"preprocessing will use up to 200-300% CPU per thread"
+    echo \$TUMORDS > tumords.txt
 
-  gridss.sh \
-    --reference \$(echo ${fasta}) \
-    --output ${params.runID}".output.vcf.gz" \
-    --assembly ${params.runID}".assembly.bam" \
-    --threads \$TASKCPUS \
-    --jar /opt/gridss/gridss-2.9.4-gridss-jar-with-dependencies.jar \
-    --workingdir ./ ${jvmheap_taskmem} \
-    --blacklist ${gridss_blacklist} \
-    --steps All \
-    --configuration ${gridss_props} \
-    --maxcoverage 50000 \
-    --labels \$LABELS \
-    \$BAMFILES
-  """
-}
+    gridss.sh \
+      --reference \$(echo ${fasta}) \
+      --output ${params.runID}".output.vcf.gz" \
+      --assembly ${params.runID}".assembly.bam" \
+      --threads \$TASKCPUS \
+      --jar /opt/gridss/gridss-2.9.4-gridss-jar-with-dependencies.jar \
+      --workingdir ./ ${jvmheap_taskmem} \
+      --blacklist ${gridss_blacklist} \
+      --steps All \
+      --configuration ${gridss_props} \
+      --maxcoverage 50000 \
+      --labels \$LABELS \
+      \$BAMFILES
+    """
+  }
 
-/* 2.1.2: GRIDSS SV filtering
-*/
-process gridss_filter {
+  /* 2.1.2: GRIDSS SV filtering
+  */
+  process gridss_filter {
 
-  label 'max_mem'
-  publishDir path: "${params.outDir}/combined/gridss", mode: "copy"
+    label 'max_mem'
+    publishDir path: "${params.outDir}/combined/gridss", mode: "copy"
 
-  input:
-  tuple val(germlineID), file(tumords), file("${params.runID}.output.vcf.gz") from gridssfilter
+    input:
+    tuple val(germlineID), file(tumords), file("${params.runID}.output.vcf.gz") from gridssfilter
 
-  output:
-  file('*') into gridssfilterd
-  tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
+    output:
+    file('*') into gridssfilterd
+    tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
 
-  when:
-  params.seqlevel == "wgs"
+    when:
+    params.seqlevel == "wgs"
 
-  script:
-  """
-  Rscript --vanilla /opt/gridss/gridss_somatic_filter.R \
-    --input ${params.runID}".output.vcf.gz" \
-    --output ${params.runID}".somatic_filter.vcf" \
-    --plotdir ./ \
-    --scriptdir /opt/gridss \
-    --normalordinal 1 \
-    --tumourordinal \$(cat $tumords)
-  """
-}
+    script:
+    """
+    Rscript --vanilla /opt/gridss/gridss_somatic_filter.R \
+      --input ${params.runID}".output.vcf.gz" \
+      --output ${params.runID}".somatic_filter.vcf" \
+      --plotdir ./ \
+      --scriptdir /opt/gridss \
+      --normalordinal 1 \
+      --tumourordinal \$(cat $tumords)
+    """
+  }
 
-//2.1.3 GRIDSS parse and plot
-process gridss_vcf_pp {
+  //2.1.3 GRIDSS parse and plot
+  process gridss_vcf_pp {
 
-  label 'low_mem'
-  publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
+    label 'low_mem'
+    publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
-  input:
-  tuple val(germlineID), file(vcf), file(tbi) from gridsspp
-  file(bwa) from reference.bwa
+    input:
+    tuple val(germlineID), file(vcf), file(tbi) from gridsspp
+    file(bwa) from reference.bwa
 
-  output:
-  file('*') into completegridsspp
+    output:
+    file('*') into completegridsspp
 
-  when:
-  params.seqlevel == "wgs"
+    when:
+    params.seqlevel == "wgs"
 
-  script:
-  def dict = "${bwa}/*dict"
-  def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
-  """
-  Rscript -e "somenone::gridss_parse_plot(vcf = \\"${params.runID}.somatic_filter.vcf.bgz\\", germline_id = \\"${germlineID}\\", dict_file = \$(echo \\"${dict}\\"), which_genome = \\"${which_genome}\\", output_path = NULL)"
-  """
+    script:
+    def dict = "${bwa}/*dict"
+    def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
+    """
+    Rscript -e "somenone::gridss_parse_plot(vcf = \\"${params.runID}.somatic_filter.vcf.bgz\\", germline_id = \\"${germlineID}\\", dict_file = \$(echo \\"${dict}\\"), which_genome = \\"${which_genome}\\", output_path = NULL)"
+    """
+  }
 }
 
 // 2.2: HaplotypeCaller merge
@@ -760,8 +761,7 @@ process hc_merge {
   publishDir path: "${params.outDir}/samples/${sampleID}/haplotypecaller", mode: "copy", pattern: '*.vcf.*'
 
   input:
-  tuple val(sampleID), file(rawvcfs) from hc_fm
-  tuple val(sampleID), val(meta) from hc_mv
+  tuple val(sampleID), val(meta), file(rawvcfs) from hc_fm
 
   output:
   tuple val(sampleID), val(meta), file("${sampleID}.hc.merge.vcf.gz"), file("${sampleID}.hc.merge.vcf.gz.tbi") into ( cpsr_vcf, vep_hc_vcf )
@@ -813,6 +813,8 @@ process cpsrreport {
 }
 
 // 2.4: filter germline channel, tap into somatic channels for all processes subsequent
+if(!params.allGermline){
+
 def germfilter = branchCriteria {
                   germfiltered: it[0] == "germline"
                   return it
@@ -1813,4 +1815,5 @@ workflow.onComplete {
            subject: subject,
            body: msg,
            attach: attachments)
+}
 }
