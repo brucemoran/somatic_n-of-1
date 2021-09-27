@@ -1792,7 +1792,9 @@ process zipup {
   script:
   """
   mkdir reports && mv *html ./reports/
-  mkdir combined && mv *pdf ./combined/
+  if [[ ${params.germOnly} == 'false' ]]; then
+    mkdir combined && mv *pdf ./combined/
+  fi
   zip -r ${params.runID}.somatic_n-of-1.zip *
   """
 }
@@ -1800,7 +1802,7 @@ process zipup {
 // 4.2: Completion e-mail notification
 
 workflow.onComplete {
-  sleep(100000)
+  sleep(10000)
   def subject = """\
     [brucemoran/somatic_n-of-1] SUCCESS: $params.runID [$workflow.runName]
     """
