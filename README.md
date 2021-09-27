@@ -42,6 +42,7 @@ type,sampleID,meta,read1,read2
 germline,germ1,whole_blood,/full/path/to/germ1.R1.fastq.gz,/full/path/to/germ1.R2.fastq.gz
 somatic,soma1,primary_tumour,/full/path/to/soma1.R1.fastq.gz,/full/path/to/soma1.R2.fastq.gz
 somatic,soma2,metastasis,/full/path/to/soma2.R1.fastq.gz,/full/path/to/soma2.R2.fastq.gz
+germsoma,"precancerous lesion",metastasis,/full/path/to/soma2.R1.fastq.gz,/full/path/to/soma2.R2.fastq.gz
 ```
 To input directories containing multiple fastqs named {sampleID}*{ext}
 ```
@@ -54,7 +55,7 @@ The `meta` column is used for reporting in PCGR, CPSR where `sampleID` may inclu
 
 Headers of `sample.csv` file must match above exactly, and you should have only one germline/normal sample per run.
 
-Column `type` must be `germline` for one sample only. In case of 2+ germline samples, run with each as `germline` in turn specifying others as `somatic`.
+Column `type` must be `germline` for one sample only. In case of 2+ germline samples, either run with each as `germline` in turn specifying others as `somatic`, or run one 'true' germline (e.g. blood) and other samples as 'germsoma'. This option means results for both germline CPSR results via HaplotypeCaller, and somatic PCGR results via ensemble calling, are returned for the sample. 
 
 ####Singularity Hub and containers
 Unfortunately shub where the containers were housed is gone, so you will need to build the conatiners. We are working on a quay.io repo. Please pull our github Singularity repo (brucemoran/Singularity) and use our recipe_builder.sh script:
