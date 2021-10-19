@@ -616,7 +616,7 @@ process germCnvkit {
    | type == "germsoma" & params.germline != false
 
   script:
-  seqlev = params.seqlevel == "wgs" ? "wgs" : "hybrid")
+  seqlev = params.seqlevel == "wgs" ? "wgs" : "hybrid"
   """
   cnvkit.py access ${fasta} -o access.bed
   cnvkit.py autobin -f ${fasta} \
