@@ -616,31 +616,42 @@ process germCnvkit {
    | type == "germsoma" & params.germline != false
 
   script:
+  seqlev = params.seqlevel == "wgs" ? "wgs" : "hybrid")
   """
   cnvkit.py access ${fasta} -o access.bed
-  cnvkit.py autobin ${bam} -t ${bed} -g access.bed --annotate ${refflat} --short-names
-  BATARG=\$(echo ${bed} | sed 's/bed/target.bed/')
-  BAATRG=\$(echo ${bed} | sed 's/bed/antitarget.bed/')
+  cnvkit.py autobin -f ${fasta} \
+                    -m ${seqlev} \
+                    -g access.bed \
+                    --annotate ${refflat} \
+                    --short-names \
+                    --target-output-bed target.bed \
+                    --antitarget-output-bed antitarget.bed \
+                    ${bam}
 
   # For each sample...
-  cnvkit.py coverage ${bam} \$BATARG -o ${sampleID}.targetcoverage.cnn
-  cnvkit.py coverage ${bam} \$BAATRG -o ${sampleID}.antitargetcoverage.cnn
+  cnvkit.py coverage -o ${sampleID}.targetcoverage.cnn \
+                     ${bam} target.bed
+  cnvkit.py coverage -o ${sampleID}.antitargetcoverage.cnn \
+                     ${bam} antitarget.bed
 
   # reference
-  cnvkit.py reference *coverage.cnn -f ${fasta} -o reference.cnn
+  cnvkit.py reference -f ${fasta} \
+                      -o reference.cnn \
+                      ${sampleID}.antitargetcoverage.cnn \
+                      ${sampleID}.targetcoverage.cnn
 
   # cnr
-  cnvkit.py fix ${sampleID}.targetcoverage.cnn ${sampleID}.antitargetcoverage.cnn reference.cnn -o ${sampleID}.cnr
+  cnvkit.py fix -o ${sampleID}.cnr ${sampleID}.targetcoverage.cnn ${sampleID}.antitargetcoverage.cnn reference.cnn
 
   # cns
-  cnvkit.py segment ${sampleID}.cnr -o ${sampleID}.cns
+  cnvkit.py segment -o ${sampleID}.cns ${sampleID}.cnr
 
   #call
-  cnvkit.py call ${sampleID}.cns -o ${sampleID}.call.cns
+  cnvkit.py call -o ${sampleID}.call.cns ${sampleID}.cns
 
   # Optionally, with --scatter and --diagram
-  cnvkit.py scatter ${sampleID}.cnr -s ${sampleID}.cns -o ${sampleID}-scatter.pdf
-  cnvkit.py diagram ${sampleID}.cnr -s ${sampleID}.cns -o ${sampleID}-diagram.pdf
+  cnvkit.py scatter -s ${sampleID}.cns -o ${sampleID}-scatter.pdf ${sampleID}.cnr
+  cnvkit.py diagram -s ${sampleID}.cns -o ${sampleID}-diagram.pdf ${sampleID}.cnr
   """
 }
 
