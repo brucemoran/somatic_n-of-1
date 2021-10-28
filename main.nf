@@ -553,7 +553,7 @@ process haplotypecaller {
 
   output:
   tuple val(sampleID), val(meta), file('*sort.hc.vcf') into hc_gt
-  val(sampleID) into ( gridssgermID, vcfGRaID )
+  tuple val(type), val(sampleID) into ver_germID
 
   when:
   type == "germline" & params.germline != false \
@@ -584,6 +584,13 @@ process haplotypecaller {
     SD=${dict}
   """
 }
+
+//in case of germsoma, verify the true germID
+//only one with germline as type
+ver_germID
+  .filter( { it[0] == "germline" } )
+  .map( { it -> it[1] } )
+  .into { gridssgermID; vcfGRaID }
 
 //group those outputs
 hc_gt
