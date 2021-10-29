@@ -752,6 +752,8 @@ process gridss_filter {
 process gridss_vcf_pp {
 
   label 'low_mem'
+  errorStrategy 'retry'
+  maxRetries 3
   publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
   input:
