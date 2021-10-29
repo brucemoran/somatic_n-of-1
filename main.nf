@@ -731,7 +731,7 @@ process gridss_filter {
 
   output:
   file('*') into gridssfilterd
-  tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz"), file("${params.runID}.somatic_filter.vcf.bgz.tbi") into gridsspp
+  tuple val(germlineID), file("${params.runID}.somatic_filter.vcf.bgz") into gridsspp
 
   when:
   params.seqlevel == "wgs"
@@ -755,7 +755,7 @@ process gridss_vcf_pp {
   publishDir path: "${params.outDir}/combined/gridss", mode: "copy", pattern: "*.[pdf, tsv, png, vcf.gz]"
 
   input:
-  tuple val(germlineID), file(vcf), file(tbi) from gridsspp
+  tuple val(germlineID), file(vcf) from gridsspp
   file(bwa) from reference.bwa
 
   output:
@@ -768,6 +768,7 @@ process gridss_vcf_pp {
   def dict = "${bwa}/*dict"
   def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
   """
+  tabix ${vcf}
   Rscript -e "somenone::gridss_parse_plot(vcf = \\"${params.runID}.somatic_filter.vcf.bgz\\", germline_id = \\"${germlineID}\\", dict_file = \$(echo \\"${dict}\\"), which_genome = \\"${which_genome}\\", output_path = NULL)"
   """
 }
