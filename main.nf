@@ -762,7 +762,8 @@ process gridss_vcf_pp {
 
   output:
   file('*') into completegridsspp
-  tuple file('*.pdf'), file('*.tsv') into sendmail_gridss
+  file("*.pdf") into sendmail_gridss_pdf
+  file("*.tsv") into sendmail_gridss_tsv
 
   when:
   params.seqlevel == "wgs"
@@ -1794,7 +1795,8 @@ sendmail_cpsr
 if(!params.germOnly) {
   sendmail_germ
     .mix(sendmail_soma)
-    .mix(sendmail_gridss)
+    .mix(sendmail_gridss_pdf)
+    .mix(sendmail_gridss_tsv)
     .set { sendmail_all }
 }
 else {
@@ -1816,7 +1818,7 @@ process zipup {
   """
   mkdir reports && mv *html ./reports/
   if [[ ${params.germOnly} == 'false' ]]; then
-    mkdir combined && mv *pdf ./combined/
+    mkdir combined && mv *.* ./combined/
   fi
   zip -r ${params.runID}.somatic_n-of-1.zip *
   """
