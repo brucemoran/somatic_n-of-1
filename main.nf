@@ -762,6 +762,7 @@ process gridss_vcf_pp {
 
   output:
   file('*') into completegridsspp
+  tuple file('*.pdf'), file('*.tsv') into sendmail_gridss
 
   when:
   params.seqlevel == "wgs"
@@ -1793,11 +1794,12 @@ sendmail_cpsr
 if(!params.germOnly) {
   sendmail_germ
     .mix(sendmail_soma)
+    .mix(sendmail_gridss)
     .set { sendmail_all }
 }
 else {
   sendmail_germ
-    .set { sendmail_all }
+  .set { sendmail_all }
 }
 
 process zipup {
