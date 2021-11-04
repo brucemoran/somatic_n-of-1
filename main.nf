@@ -1630,17 +1630,18 @@ if(!params.germOnly){
 
     output:
     file('*') into pairtree_res
+    file('*.pdf') into sendmail_pairtree
 
     when:
     params.phylogeny == true
 
     script:
     """
-    cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree.ssm
+    cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree_${model}_${concn}.ssm
 
     clustervars --model ${model} \
                 --concentration ${concn} \
-                ${params.runID}.pairtree.ssm \
+                ${params.runID}.pairtree_${model}_${concn}.ssm \
                 ${pairtree_json} \
                 ${params.runID}.out_params_${model}_${concn}.json
 
@@ -1648,12 +1649,19 @@ if(!params.germOnly){
                               ${params.runID}.out_params_${model}_${concn}.json \
                               ${params.runID}.rmvaf_params_${model}_${concn}.json
 
-    pairtree --params ${params.runID}.rmvaf_params_${model}_${concn}.json \
+    WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concn}.json)
+    if [[ \$WCLTEST == 0 ]]; then
+      OUTPARAMS=${params.runID}.out_params_${model}_${concn}.json
+    else
+      OUTPARAMS=${params.runID}.rmvaf_params_${model}_${concn}.json
+    fi
+
+    pairtree --params \$OUTPARAMS \
              ${params.runID}.pairtree_${model}_${concn}.ssm \
              ${params.runID}.res_${model}_${concn}.npz
 
     plottree ${params.runID}.pairtree_${model}_${concn}.ssm \
-             ${params.runID}.rmvaf_params_${model}_${concn}.json \
+             \$OUTPARAMS \
              ${params.runID}.res_${model}_${concn}.npz \
              ${params.runID}.pairtree_${model}_${concn}.results.html
     """
@@ -1673,7 +1681,7 @@ if(!params.germOnly){
 
     output:
     file('*') into  pathseq_res
-
+    file('*.txt') into sendmail_pathseq
     when:
     params.microbiome == true
 
@@ -1703,6 +1711,17 @@ if(!params.germOnly){
     .mix(sendmail_facets)
     .set { sendmail_soma }
 
+  if(params.phylogeny){
+    sendmail_soma
+      .mix(sendmail_pairtree)
+      .set { sendmail_soma }
+  }
+
+  if(params.microbiome){
+    sendmail_soma
+      .mix(sendmail_pathseq)
+      .set { sendmail_soma }
+  }
 }
 
 /*
@@ -1816,9 +1835,9 @@ process zipup {
 
   script:
   """
-  mkdir reports && mv *html ./reports/
+  mkdir html_reports && mv *html ./html_reports/
   if [[ ${params.germOnly} == 'false' ]]; then
-    mkdir combined && mv *.* ./combined/
+    mkdir other && mv *.* ./other/
   fi
   zip -r ${params.runID}.somatic_n-of-1.zip *
   """
