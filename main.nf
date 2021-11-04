@@ -190,7 +190,7 @@ if(params.sampleCat){
 // 0.01: Create a uBAM for Pathseq
 process ubam {
 
-  label 'high_mem'
+  label 'med_mem'
   errorStrategy 'retry'
   maxRetries 3
 
