@@ -1646,6 +1646,7 @@ if(!params.germOnly){
                 ${pairtree_json} \
                 ${params.runID}.out_params_${model}_${concnt}.json
 
+    touch ${params.runID}.rmvaf_params_${model}_${concnt}.json
     python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py \
            ${params.runID}.pairtree_${model}_${concnt}.ssm \
            ${params.runID}.out_params_${model}_${concnt}.json \
