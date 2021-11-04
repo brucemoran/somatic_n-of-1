@@ -1653,7 +1653,7 @@ if(!params.germOnly){
            ${params.runID}.rmvaf_params_${model}_${concnt}.json
 
     WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concnt}.json)
-    if [[ \$WCLTEST == 0 ]]; then
+    if [[ \$WCLTEST < 0 ]]; then
       OUTPARAMS=${params.runID}.out_params_${model}_${concnt}.json
     else
       OUTPARAMS=${params.runID}.rmvaf_params_${model}_${concnt}.json
