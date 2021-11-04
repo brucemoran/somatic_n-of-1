@@ -1638,8 +1638,6 @@ if(!params.germOnly){
     script:
     def concnt = "${concn}" < 0 ? "${concn}".replaceAll("-", "minus") : "${concn}"
     """
-    if[[ ${concn} > 0 ]]; then
-
     cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree_${model}_${concnt}.ssm
 
     clustervars --model ${model} \
