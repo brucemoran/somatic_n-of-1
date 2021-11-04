@@ -1636,35 +1636,38 @@ if(!params.germOnly){
     params.phylogeny == true
 
     script:
+    def concnt = "${concn}" < 0 ? "${concn}".replaceAll("-", "minus") : "${concn}"
     """
-    cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree_${model}_${concn}.ssm
+    if[[ ${concn} > 0 ]]; then
+
+    cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree_${model}_${concnt}.ssm
 
     clustervars --model ${model} \
                 --concentration ${concn} \
-                ${params.runID}.pairtree_${model}_${concn}.ssm \
+                ${params.runID}.pairtree_${model}_${concnt}.ssm \
                 ${pairtree_json} \
-                ${params.runID}.out_params_${model}_${concn}.json
+                ${params.runID}.out_params_${model}_${concnt}.json
 
     python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py \
-           ${params.runID}.pairtree_${model}_${concn}.ssm \
-           ${params.runID}.out_params_${model}_${concn}.json \
-           ${params.runID}.rmvaf_params_${model}_${concn}.json
+           ${params.runID}.pairtree_${model}_${concnt}.ssm \
+           ${params.runID}.out_params_${model}_${concnt}.json \
+           ${params.runID}.rmvaf_params_${model}_${concnt}.json
 
-    WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concn}.json)
+    WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concnt}.json)
     if [[ \$WCLTEST == 0 ]]; then
-      OUTPARAMS=${params.runID}.out_params_${model}_${concn}.json
+      OUTPARAMS=${params.runID}.out_params_${model}_${concnt}.json
     else
-      OUTPARAMS=${params.runID}.rmvaf_params_${model}_${concn}.json
+      OUTPARAMS=${params.runID}.rmvaf_params_${model}_${concnt}.json
     fi
 
     pairtree --params \$OUTPARAMS \
-             ${params.runID}.pairtree_${model}_${concn}.ssm \
-             ${params.runID}.res_${model}_${concn}.npz
+             ${params.runID}.pairtree_${model}_${concnt}.ssm \
+             ${params.runID}.res_${model}_${concnt}.npz
 
-    plottree ${params.runID}.pairtree_${model}_${concn}.ssm \
+    plottree ${params.runID}.pairtree_${model}_${concnt}.ssm \
              \$OUTPARAMS \
-             ${params.runID}.res_${model}_${concn}.npz \
-             ${params.runID}.pairtree_${model}_${concn}.results.html
+             ${params.runID}.res_${model}_${concnt}.npz \
+             ${params.runID}.pairtree_${model}_${concnt}.results.html
     """
   }
 
