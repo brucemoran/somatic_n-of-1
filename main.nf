@@ -1652,8 +1652,8 @@ if(!params.germOnly){
            ${params.runID}.out_params_${model}_${concnt}.json \
            ${params.runID}.rmvaf_params_${model}_${concnt}.json
 
-    WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concnt}.json)
-    if [[ \$WCLTEST < 0 ]]; then
+    WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concnt}.json | perl -ane 'print \$F[0];')
+    if [[ \$WCLTEST < 1 ]]; then
       OUTPARAMS=${params.runID}.out_params_${model}_${concnt}.json
     else
       OUTPARAMS=${params.runID}.rmvaf_params_${model}_${concnt}.json
