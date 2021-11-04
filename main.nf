@@ -1630,7 +1630,7 @@ if(!params.germOnly){
 
     output:
     file('*') into pairtree_res
-    file('*.pdf') into sendmail_pairtree
+    file('*.html') into sendmail_pairtree
 
     when:
     params.phylogeny == true
@@ -1645,9 +1645,10 @@ if(!params.germOnly){
                 ${pairtree_json} \
                 ${params.runID}.out_params_${model}_${concn}.json
 
-    python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py ${params.runID}.pairtree.ssm \
-                              ${params.runID}.out_params_${model}_${concn}.json \
-                              ${params.runID}.rmvaf_params_${model}_${concn}.json
+    python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py \
+           ${params.runID}.pairtree_${model}_${concn}.ssm \
+           ${params.runID}.out_params_${model}_${concn}.json \
+           ${params.runID}.rmvaf_params_${model}_${concn}.json
 
     WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concn}.json)
     if [[ \$WCLTEST == 0 ]]; then
