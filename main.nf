@@ -628,7 +628,7 @@ process germCnvkit {
   cnvkit.py access ${fasta} -o access.bed
   cnvkit.py autobin -f ${fasta} \
                     -m ${seqlev} \
-                    -g access.bed \
+                    -t access.bed \
                     --annotate ${refflat} \
                     --short-names \
                     --target-output-bed target.bed \
