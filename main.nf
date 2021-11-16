@@ -617,6 +617,7 @@ process germCnvkit {
 
   output:
   file('*') into germCnvkit_comp
+  tuple file("${sampleID}.call.cns"), file("${sampleID}.scatter.pdf"), file("${sampleID}.diagram.pdf") into sendmail_cnvkit
 
   when:
   type == "germline" & params.germline != false \
@@ -657,8 +658,8 @@ process germCnvkit {
   cnvkit.py call -o ${sampleID}.call.cns ${sampleID}.cns
 
   # Optionally, with --scatter and --diagram
-  cnvkit.py scatter -s ${sampleID}.cns -o ${sampleID}-scatter.pdf ${sampleID}.cnr
-  cnvkit.py diagram -s ${sampleID}.cns -o ${sampleID}-diagram.pdf ${sampleID}.cnr
+  cnvkit.py scatter -s ${sampleID}.cns -o ${sampleID}.scatter.pdf ${sampleID}.cnr
+  cnvkit.py diagram -s ${sampleID}.cns -o ${sampleID}.diagram.pdf ${sampleID}.cnr
   """
 }
 
@@ -1812,6 +1813,7 @@ process pcgr_software_vers {
 // 4.19: ZIP for sending on sendmail
 sendmail_cpsr
   .mix(sendmail_multiqc)
+  .mix(sendmail_cnvkit)
   .set { sendmail_germ }
 
 if(!params.germOnly) {
@@ -1821,7 +1823,7 @@ if(!params.germOnly) {
     .mix(sendmail_gridss_tsv)
     .set { sendmail_all }
 }
-else {
+if(params.germOnly) {
   sendmail_germ
   .set { sendmail_all }
 }
@@ -1839,9 +1841,7 @@ process zipup {
   script:
   """
   mkdir html_reports && mv *html ./html_reports/
-  if [[ ${params.germOnly} == 'false' ]]; then
-    mkdir other && mv *.* ./other/
-  fi
+  mkdir other && mv *.* ./other/
   zip -r ${params.runID}.somatic_n-of-1.zip *
   """
 }
@@ -1849,7 +1849,7 @@ process zipup {
 // 4.2: Completion e-mail notification
 
 workflow.onComplete {
-  sleep(10000)
+  sleep(1000)
   def subject = """\
     [brucemoran/somatic_n-of-1] SUCCESS: $params.runID [$workflow.runName]
     """
