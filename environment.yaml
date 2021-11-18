@@ -90,6 +90,7 @@ dependencies:
   - cython=0.29.23=py37hcd2ae1e_0
   - cyvcf2=0.30.8=py37hef46e3d_0
   - decorator=4.4.2=py_0
+  - dotnet
   - ensembl-vep=101.0=pl526hecda079_1
   - expat=2.4.1=h9c3ff4c_0
   - fastp=0.20.1=h2e03b76_1
