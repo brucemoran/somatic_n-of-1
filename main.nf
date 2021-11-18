@@ -52,16 +52,8 @@ def helpMessage() {
                                 _1.fq.gz;_2.fq.gz).
 
     --bamCsv        [file]      CSV format, headers as sampleCsv except read1,
-                                read2 are swapped for 'stage,bam'; former is
-                                either 'mrkdup', 'gtkrcl' or 'call' indicating
-                                which process the input BAM file should be sent
-                                on to: duplicate marking, recalibration, or
-                                variant calling
-
-    --bamStage      [str]       stage is either 'mrkdup' or 'gtkrcl'
-                                indicating which process the input BAM file
-                                should be sent to: duplicate marking or recalibration;
-                                NB currently precludes running of pathSeq
+                                read2 are swapped for bam which is sent to
+                                duplicate marking
 
     --multiqcConfig [str]       Config file for multiqc
                                 (default: bin/somatic_n-of-1.multiQC_config.yaml)
@@ -88,10 +80,6 @@ if(params.sampleCsv && params.sampleCat){
 
 if(params.sampleCsv == null && params.sampleCat == null && params.bamCsv == null){
   exit 1, "Please include one of --sampleCsv, --bamCsv or --sampleCat, see --help for format"
-}
-
-if(params.bamCsv && params.bamStage == null){
-  exit 1, "Please include --bamStage with --bamCsv to indicate where to send BAMs"
 }
 
 if(!Channel.from(params.runID, checkIfExists: true)){
@@ -186,20 +174,13 @@ if(params.bamCsv){
     tuple val(type), val(sampleID), val(meta), file(bam) from which_bam
 
     output:
-    tuple val(type), val(sampleID), val(meta), file(bam), file("*.bai") into where_bam
+    tuple val(type), val(sampleID), val(meta), file(bam), file("*.bai") into dup_marking
 
     script:
     """
     #! bash
     samtools index ${bam}
     """
-  }
-
-  if(params.bamStage == "mrkdup"){
-    where_bam.set { dup_marking }
-  }
-  if(params.bamStage == "gtkrcl"){
-    where_bam.into { gatk4recaling; gridssing }
   }
 }
 
@@ -234,7 +215,7 @@ if(params.sampleCat){
 }
 
 // 0.01: Create a uBAM for Pathseq
-if(!params.bamStage){
+if(!params.bamCsv){
   process ubam {
 
     label 'med_mem'
@@ -275,147 +256,148 @@ if(!params.bamStage){
     rm -r tmp
     """
   }
-}
-/*
-================================================================================
-                          0. PREPROCESS INPUT FASTQ
-================================================================================
-*/
-// 0.1: Input trimming
-process bbduk {
 
-  label 'med_mem'
-  publishDir path: "${params.outDir}/samples/${sampleID}/bbduk", mode: "copy", pattern: "*.txt"
+  /*
+  ================================================================================
+                            0. PREPROCESS INPUT FASTQ
+  ================================================================================
+  */
+  // 0.1: Input trimming
+  process bbduk {
 
-  input:
-  tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bbduking
+    label 'med_mem'
+    publishDir path: "${params.outDir}/samples/${sampleID}/bbduk", mode: "copy", pattern: "*.txt"
 
-  output:
-  file('*.txt') into log_bbduk
-  tuple val(type), val(sampleID), val(meta), file('*.bbduk.R1.fastq.gz'), file('*.bbduk.R2.fastq.gz') into bwa_memming
-  tuple val(type), val(sampleID), val(meta), file('*.bbduk.R1.fastq.gz'), file('*.bbduk.R2.fastq.gz'), file(read1), file(read2) into fastping
-  tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into fastqcing
+    input:
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bbduking
 
-  script:
-  def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
-  """
-  {
-  sh bbduk.sh ${taskmem} \
-    in1=${read1} \
-    in2=${read2} \
-    out1=${sampleID}".bbduk.R1.fastq.gz" \
-    out2=${sampleID}".bbduk.R2.fastq.gz" \
-    k=31 \
-    mink=5 \
-    hdist=1 \
-    ktrim=r \
-    trimq=20 \
-    qtrim=rl \
-    maq=20 \
-    ref=/opt/miniconda/envs/somatic_n-of-1/opt/bbmap-adapters.fa \
-    tpe \
-    tbo \
-    stats=${sampleID}".bbduk.adapterstats.txt" \
-    overwrite=T
-  } 2>&1 | tee > ${sampleID}.bbduk.runstats.txt
-  """
-}
+    output:
+    file('*.txt') into log_bbduk
+    tuple val(type), val(sampleID), val(meta), file('*.bbduk.R1.fastq.gz'), file('*.bbduk.R2.fastq.gz') into bwa_memming
+    tuple val(type), val(sampleID), val(meta), file('*.bbduk.R1.fastq.gz'), file('*.bbduk.R2.fastq.gz'), file(read1), file(read2) into fastping
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) into fastqcing
 
-// 0.2: fastp QC of pre-, post-bbduk
-process fastp {
+    script:
+    def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
+    """
+    {
+    sh bbduk.sh ${taskmem} \
+      in1=${read1} \
+      in2=${read2} \
+      out1=${sampleID}".bbduk.R1.fastq.gz" \
+      out2=${sampleID}".bbduk.R2.fastq.gz" \
+      k=31 \
+      mink=5 \
+      hdist=1 \
+      ktrim=r \
+      trimq=20 \
+      qtrim=rl \
+      maq=20 \
+      ref=/opt/miniconda/envs/somatic_n-of-1/opt/bbmap-adapters.fa \
+      tpe \
+      tbo \
+      stats=${sampleID}".bbduk.adapterstats.txt" \
+      overwrite=T
+    } 2>&1 | tee > ${sampleID}.bbduk.runstats.txt
+    """
+  }
 
-  label 'low_mem'
-  publishDir "${params.outDir}/samples/${sampleID}/fastp", mode: "copy", pattern: "*.html"
+  // 0.2: fastp QC of pre-, post-bbduk
+  process fastp {
 
-  input:
-  tuple val(type), val(sampleID), val(meta), file(preread1), file(preread2), file(postread1), file(postread2) from fastping
+    label 'low_mem'
+    publishDir "${params.outDir}/samples/${sampleID}/fastp", mode: "copy", pattern: "*.html"
 
-  output:
-  file('*.html') into fastp_html
-  file('*.json') into fastp_multiqc
+    input:
+    tuple val(type), val(sampleID), val(meta), file(preread1), file(preread2), file(postread1), file(postread2) from fastping
 
-  script:
-  """
-  fastp -w ${task.cpus} -h ${sampleID}"_pre.fastp.html" -j ${sampleID}"_pre.fastp.json" --in1 ${preread1} --in2 ${preread2}
+    output:
+    file('*.html') into fastp_html
+    file('*.json') into fastp_multiqc
 
-  fastp -w ${task.cpus} -h ${sampleID}"_post.fastp.html" -j ${sampleID}"_post.fastp.json" --in1 ${postread1} --in2 ${postread2}
-  """
-}
+    script:
+    """
+    fastp -w ${task.cpus} -h ${sampleID}"_pre.fastp.html" -j ${sampleID}"_pre.fastp.json" --in1 ${preread1} --in2 ${preread2}
 
-// 0.3: fastQC of per, post-bbduk
-process fastqc {
+    fastp -w ${task.cpus} -h ${sampleID}"_post.fastp.html" -j ${sampleID}"_post.fastp.json" --in1 ${postread1} --in2 ${postread2}
+    """
+  }
 
-  label 'low_mem'
-  publishDir "${params.outDir}/samples/${sampleID}/fastqc", mode: "copy", pattern: "*.html"
+  // 0.3: fastQC of per, post-bbduk
+  process fastqc {
 
-  input:
-  tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from fastqcing
+    label 'low_mem'
+    publishDir "${params.outDir}/samples/${sampleID}/fastqc", mode: "copy", pattern: "*.html"
 
-  output:
-  file('*.html') into fastqc_multiqc
+    input:
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from fastqcing
 
-  script:
-  """
-  #!/bin/bash
-  fastqc -t ${task.cpus} --noextract -o ./ ${read1} ${read2}
-  """
-}
+    output:
+    file('*.html') into fastqc_multiqc
 
-/*
-================================================================================
-                        1. ALIGNMENT AND BAM PROCESSING
-================================================================================
-*/
-// 1.0: Input alignment
-process bwamem {
+    script:
+    """
+    #!/bin/bash
+    fastqc -t ${task.cpus} --noextract -o ./ ${read1} ${read2}
+    """
+  }
 
-  label 'high_mem'
-  errorStrategy 'retry'
-  maxRetries 3
+  /*
+  ================================================================================
+                          1. ALIGNMENT AND BAM PROCESSING
+  ================================================================================
+  */
+  // 1.0: Input alignment
+  process bwamem {
 
-  input:
-  tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bwa_memming
-  file(bwa) from reference.bwa
+    label 'high_mem'
+    errorStrategy 'retry'
+    maxRetries 3
 
-  output:
-  tuple val(type), val(sampleID), val(meta), file('*.bam'), file('*.bai') into (cramming, dup_marking)
+    input:
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from bwa_memming
+    file(bwa) from reference.bwa
 
-  script:
-  def fa = "${bwa}/*fasta"
-  """
-  DATE=\$(date +"%Y-%m-%dT%T")
-  RGLINE="@RG\\tID:${sampleID}\\tPL:ILLUMINA\\tSM:${sampleID}\\tDS:${type}\\tCN:UCD\\tLB:LANE_X\\tDT:\$DATE"
+    output:
+    tuple val(type), val(sampleID), val(meta), file('*.bam'), file('*.bai') into (cramming, dup_marking)
 
-  bwa mem \
-    -t${task.cpus} \
-    -M \
-    -R \$RGLINE \
-    ${fa} \
-    ${read1} ${read2} | \
-    samtools sort -T "tmp."${sampleID} -o ${sampleID}".sort.bam"
-  samtools index ${sampleID}".sort.bam"
-  """
-}
+    script:
+    def fa = "${bwa}/*fasta"
+    """
+    DATE=\$(date +"%Y-%m-%dT%T")
+    RGLINE="@RG\\tID:${sampleID}\\tPL:ILLUMINA\\tSM:${sampleID}\\tDS:${type}\\tCN:UCD\\tLB:LANE_X\\tDT:\$DATE"
 
-// 1.1: CRAM alignment and output
-// TODO: output upload schema for ENA/EGA
-process cram {
+    bwa mem \
+      -t${task.cpus} \
+      -M \
+      -R \$RGLINE \
+      ${fa} \
+      ${read1} ${read2} | \
+      samtools sort -T "tmp."${sampleID} -o ${sampleID}".sort.bam"
+    samtools index ${sampleID}".sort.bam"
+    """
+  }
 
-  label 'low_mem'
-  publishDir path: "${params.outDir}/samples/${sampleID}/bwa", mode: "copy", pattern: "*.cra*"
+  // 1.1: CRAM alignment and output
+  // TODO: output upload schema for ENA/EGA
+  process cram {
 
-  input:
-  tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from cramming
-  file(bwa) from reference.bwa
+    label 'low_mem'
+    publishDir path: "${params.outDir}/samples/${sampleID}/bwa", mode: "copy", pattern: "*.cra*"
 
-  output:
-  tuple file('*.cram'), file('*.crai') into completedcram
+    input:
+    tuple val(type), val(sampleID), val(meta), file(bam), file(bai) from cramming
+    file(bwa) from reference.bwa
 
-  script:
-  """
-  samtools view -hC -T ${bwa}/*fasta ${sampleID}".sort.bam" > ${sampleID}".sort.cram"
-  samtools index ${sampleID}".sort.cram"
-  """
+    output:
+    tuple file('*.cram'), file('*.crai') into completedcram
+
+    script:
+    """
+    samtools view -hC -T ${bwa}/*fasta ${sampleID}".sort.bam" > ${sampleID}".sort.cram"
+    samtools index ${sampleID}".sort.cram"
+    """
+  }
 }
 
 // 1.2: MarkDuplicates
