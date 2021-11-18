@@ -1744,6 +1744,11 @@ if(!params.germOnly){
         .mix(sendmail_pathseq)
         .set { sendmail_soma }
     }
+
+    fastp_multiqc.collect()
+      .mix(fastqc_multiqc.collect())
+      .mix(mrkdup_multiqc.collect())
+      .set{ mrkdup_multiqc_col }
   }
   sendmail_pcgr
     .mix(sendmail_vcfGRa)
@@ -1759,6 +1764,9 @@ if(!params.germOnly){
 
 }
 
+mrkdup_multiqc
+  .collect()
+  .set { mrkdup_multiqc_col }
 /*
 ================================================================================
                           4.  MULTIQC AND CLOSEOUT
@@ -1771,11 +1779,9 @@ process MultiQC {
   publishDir path: "${params.outDir}/reports/multiQC", mode: "copy"
 
   input:
-  file(fastps) from fastp_multiqc.collect()
-  file(fastqcs) from fastqc_multiqc.collect()
   file(gtkrcls) from gtkrcl_multiqc.collect()
   file(multimetrics) from multimetrics_multiqc.collect()
-  file(mrkdups) from mrkdup_multiqc.collect()
+  file(mrkdups) from mrkdup_multiqc_col
   file(mosdepth) from mosdepth_multiqc.collect()
 
   output:
