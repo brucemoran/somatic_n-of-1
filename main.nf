@@ -1701,44 +1701,50 @@ if(!params.germOnly){
   }
 
   //3.5: Pathseq
+  if(!params.bamCsv){
+    process Pathseq {
 
-  process Pathseq {
+      label 'high_mem'
 
-    label 'high_mem'
+      publishDir "${params.outDir}/samples/${sampleID}/pathseq", mode: "copy"
 
-    publishDir "${params.outDir}/samples/${sampleID}/pathseq", mode: "copy"
+      input:
+      tuple val(type), val(sampleID), val(meta), file(ubam), file(ubai) from pathseqing
+      file(pathseq_refs) from reference.pathseq
 
-    input:
-    tuple val(type), val(sampleID), val(meta), file(ubam), file(ubai) from pathseqing
-    file(pathseq_refs) from reference.pathseq
+      output:
+      file('*') into  pathseq_res
+      file('*.txt') into sendmail_pathseq
+      when:
+      params.microbiome == true
 
-    output:
-    file('*') into  pathseq_res
-    file('*.txt') into sendmail_pathseq
-    when:
-    params.microbiome == true
+      script:
+      def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
 
-    script:
-    def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
+      """
+       gatk ${taskmem} PathSeqPipelineSpark  \
+         --input ${ubam} \
+         --kmer-file ${pathseq_refs}/pathseq_host.bfi \
+         --filter-bwa-image ${pathseq_refs}/pathseq_host.fa.img \
+         --microbe-bwa-image ${pathseq_refs}/pathseq_microbe.fa.img \
+         --microbe-dict ${pathseq_refs}/pathseq_microbe.dict \
+         --taxonomy-file ${pathseq_refs}/pathseq_microbe_taxonomy.db \
+         --min-clipped-read-length 60 \
+         --min-score-identity 0.90 \
+         --identity-margin 0.02 \
+         --scores-output ${sampleID}.pathseq.scores.txt \
+         --output ${sampleID}.pathseq.output_reads.bam \
+         --filter-metrics ${sampleID}.pathseq.filter_metrics.txt \
+         --score-metrics ${sampleID}.pathseq.score_metrics.txt
+      """
+    }
 
-    """
-     gatk ${taskmem} PathSeqPipelineSpark  \
-       --input ${ubam} \
-       --kmer-file ${pathseq_refs}/pathseq_host.bfi \
-       --filter-bwa-image ${pathseq_refs}/pathseq_host.fa.img \
-       --microbe-bwa-image ${pathseq_refs}/pathseq_microbe.fa.img \
-       --microbe-dict ${pathseq_refs}/pathseq_microbe.dict \
-       --taxonomy-file ${pathseq_refs}/pathseq_microbe_taxonomy.db \
-       --min-clipped-read-length 60 \
-       --min-score-identity 0.90 \
-       --identity-margin 0.02 \
-       --scores-output ${sampleID}.pathseq.scores.txt \
-       --output ${sampleID}.pathseq.output_reads.bam \
-       --filter-metrics ${sampleID}.pathseq.filter_metrics.txt \
-       --score-metrics ${sampleID}.pathseq.score_metrics.txt
-    """
+    if(params.microbiome){
+      sendmail_soma
+        .mix(sendmail_pathseq)
+        .set { sendmail_soma }
+    }
   }
-
   sendmail_pcgr
     .mix(sendmail_vcfGRa)
     .mix(sendmail_facets)
@@ -1750,11 +1756,7 @@ if(!params.germOnly){
       .set { sendmail_soma }
   }
 
-  if(params.microbiome){
-    sendmail_soma
-      .mix(sendmail_pathseq)
-      .set { sendmail_soma }
-  }
+
 }
 
 /*
