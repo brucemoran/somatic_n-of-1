@@ -174,7 +174,7 @@ if(params.sampleCsv){
 if(params.bamCsv){
   Channel.fromPath("${params.bamCsv}")
          .splitCsv( header: true )
-         .map { row -> [row.type, row.sampleID, row.meta, file(bam)] }
+         .map { row -> [row.type, row.sampleID, row.meta, file(row.bam)] }
          .set { which_bam }
 
   process bam_input {
