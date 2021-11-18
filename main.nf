@@ -60,7 +60,8 @@ def helpMessage() {
 
     --bamStage      [str]       stage is either 'mrkdup' or 'gtkrcl'
                                 indicating which process the input BAM file
-                                should be sent to: duplicate marking or recalibration
+                                should be sent to: duplicate marking or recalibration;
+                                NB currently precludes running of pathSeq
 
     --multiqcConfig [str]       Config file for multiqc
                                 (default: bin/somatic_n-of-1.multiQC_config.yaml)
@@ -233,47 +234,48 @@ if(params.sampleCat){
 }
 
 // 0.01: Create a uBAM for Pathseq
-process ubam {
+if(!params.bamStage){
+  process ubam {
 
-  label 'med_mem'
-  errorStrategy 'retry'
-  maxRetries 3
+    label 'med_mem'
+    errorStrategy 'retry'
+    maxRetries 3
 
-  input:
-  tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from ubaming
+    input:
+    tuple val(type), val(sampleID), val(meta), file(read1), file(read2) from ubaming
 
-  output:
-  tuple val(type), val(sampleID), val(meta), file('*.bam'), file('*.bai') into pathseqing
+    output:
+    tuple val(type), val(sampleID), val(meta), file('*.bam'), file('*.bai') into pathseqing
 
-  when:
-  params.microbiome == true
+    when:
+    params.microbiome == true
 
-  script:
-  def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
-  """
-  DATE=\$(date +"%Y-%m-%dT%T")
-  mkdir tmp
-  {
-  picard ${taskmem} FastqToSam \
-    FASTQ=${read1} \
-    FASTQ2=${read2} \
-    OUTPUT=${sampleID}.unaligned.bam \
-    READ_GROUP_NAME=${sampleID} \
-    SAMPLE_NAME=${sampleID} \
-    LIBRARY_NAME=LANE_X \
-    PLATFORM_UNIT=IL_X \
-    PLATFORM=ILLUMINA \
-    SEQUENCING_CENTER=UCD \
-    RUN_DATE=\$DATE \
-    TMP_DIR="tmp"
-  } 2>&1 | tee > ${sampleID}.FastqToSam.log.txt
+    script:
+    def taskmem = task.memory == null ? "" : "-Xmx" + javaTaskmem("${task.memory}")
+    """
+    DATE=\$(date +"%Y-%m-%dT%T")
+    mkdir tmp
+    {
+    picard ${taskmem} FastqToSam \
+      FASTQ=${read1} \
+      FASTQ2=${read2} \
+      OUTPUT=${sampleID}.unaligned.bam \
+      READ_GROUP_NAME=${sampleID} \
+      SAMPLE_NAME=${sampleID} \
+      LIBRARY_NAME=LANE_X \
+      PLATFORM_UNIT=IL_X \
+      PLATFORM=ILLUMINA \
+      SEQUENCING_CENTER=UCD \
+      RUN_DATE=\$DATE \
+      TMP_DIR="tmp"
+    } 2>&1 | tee > ${sampleID}.FastqToSam.log.txt
 
-  samtools index ${sampleID}.unaligned.bam
+    samtools index ${sampleID}.unaligned.bam
 
-  rm -r tmp
-  """
+    rm -r tmp
+    """
+  }
 }
-
 /*
 ================================================================================
                           0. PREPROCESS INPUT FASTQ
