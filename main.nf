@@ -51,6 +51,17 @@ def helpMessage() {
                                 (extension scheme for parsing read1, read2 e.g.
                                 _1.fq.gz;_2.fq.gz).
 
+    --bamCsv        [file]      CSV format, headers as sampleCsv except read1,
+                                read2 are swapped for 'stage,bam'; former is
+                                either 'mrkdup', 'gtkrcl' or 'call' indicating
+                                which process the input BAM file should be sent
+                                on to: duplicate marking, recalibration, or
+                                variant calling
+
+    --bamStage      [str]       stage is either 'mrkdup' or 'gtkrcl'
+                                indicating which process the input BAM file
+                                should be sent to: duplicate marking or recalibration
+
     --multiqcConfig [str]       Config file for multiqc
                                 (default: bin/somatic_n-of-1.multiQC_config.yaml)
 
@@ -74,8 +85,12 @@ if(params.sampleCsv && params.sampleCat){
   exit 1, "Please include only one of --sampleCsv or --sampleCat, see --help for format"
 }
 
-if(params.sampleCsv == null && params.sampleCat == null){
-  exit 1, "Please include one of --sampleCsv or --sampleCat, see --help for format"
+if(params.sampleCsv == null && params.sampleCat == null && params.bamCsv == null){
+  exit 1, "Please include one of --sampleCsv, --bamCsv or --sampleCat, see --help for format"
+}
+
+if(params.bamCsv && params.bamStage == null){
+  exit 1, "Please include --bamStage with --bamCsv to indicate where to send BAMs"
 }
 
 if(!Channel.from(params.runID, checkIfExists: true)){
@@ -147,7 +162,7 @@ reference.bed = params.seqlevel == "wgs" ? Channel.fromPath("${params.refDir}/${
                           -0. PREPROCESS INPUT SAMPLE FILE
 ================================================================================
 */
-/* 0.00: Input using sample.csv
+/* 0.00: Input using sample.csv, bam.csv, sample_cat
 */
 if(params.sampleCsv){
   Channel.fromPath("${params.sampleCsv}")
@@ -156,13 +171,43 @@ if(params.sampleCsv){
          .into { bbduking; ubaming }
 }
 
+if(params.bamCsv){
+  Channel.fromPath("${params.bamCsv}")
+         .splitCsv( header: true )
+         .map { row -> [row.type, row.sampleID, row.meta, file(bam)] }
+         .set { which_bam }
+
+  process bam_input {
+
+    label 'low_mem'
+
+    input:
+    tuple val(type), val(sampleID), val(meta), file(bam) from which_bam
+
+    output:
+    tuple val(type), val(sampleID), val(meta), file(bam), file("*.bai") into where_bam
+
+    script:
+    """
+    #! bash
+    samtools index ${bam}
+    """
+  }
+
+  if(params.bamStage == "mrkdup"){
+    where_bam.set { dup_marking }
+  }
+  if(params.bamStage == "gtkrcl"){
+    where_bam.into { gatk4recaling, gridssing }
+  }
+}
+
 if(params.sampleCat){
   Channel.fromPath("${params.sampleCat}")
          .splitCsv( header: true )
          .map { row -> [row.type, row.sampleID, row.meta, row.dir, row.ext] }
          .set { samplecating }
 
-  // 0.000: Input trimming
   process samplecat {
 
     label 'low_mem'
