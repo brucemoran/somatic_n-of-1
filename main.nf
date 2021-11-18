@@ -198,7 +198,7 @@ if(params.bamCsv){
     where_bam.set { dup_marking }
   }
   if(params.bamStage == "gtkrcl"){
-    where_bam.into { gatk4recaling, gridssing }
+    where_bam.into { gatk4recaling; gridssing }
   }
 }
 
