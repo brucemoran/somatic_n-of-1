@@ -306,7 +306,7 @@ if(file("$params.outDir/gnomad").exists()){
     file(gnomad_dir) from gnomad_chan
 
     output:
-    file('gnomad/af-only-gnomad.*') into ( exome_biall_gnomad, wgs_biall_gnomad )
+    file('gnomad/af-only-gnomad.*gz') into ( exome_biall_gnomad, wgs_biall_gnomad )
 
     script:
     if( params.assembly == "GRCh37" )
@@ -597,16 +597,28 @@ if(!file("$params.outDir/wgs").exists()){
 
     script:
     hg = params.assembly == "GRCh37" ? "hg19" : "hg38"
-    """
-    cut -f 1,2,3 ${wgsbed} > wgs.biall.bed
-    gunzip -c ${gnomadgz} | sed 's/chr//' | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
-    tabix af-only-gnomad.${hg}.noChr.vcf.gz
+    if( params.assembly == "GRCh37" )
+      """
+      cut -f 1,2,3 ${wgsbed} > wgs.biall.bed
+      sed 's/chr//' ${gnomadgz} | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
+      tabix af-only-gnomad.${hg}.noChr.vcf.gz
 
-    bcftools view -R wgs.biall.bed af-only-gnomad.${hg}.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.${hg}.noChr.vcf
-    perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.${hg}.noChr.vcf ${fai} > af-only-gnomad.wgs.${hg}.noChr.vcf
-    bgzip af-only-gnomad.wgs.${hg}.noChr.vcf
-    tabix af-only-gnomad.wgs.${hg}.noChr.vcf.gz
-    """
+      bcftools view -R wgs.biall.bed af-only-gnomad.${hg}.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.${hg}.noChr.vcf
+      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.${hg}.noChr.vcf ${fai} > af-only-gnomad.wgs.${hg}.noChr.vcf
+      bgzip af-only-gnomad.wgs.${hg}.noChr.vcf
+      tabix af-only-gnomad.wgs.${hg}.noChr.vcf.gz
+      """
+    else
+      """
+      cut -f 1,2,3 ${wgsbed} > wgs.biall.bed
+      gunzip -c ${gnomadgz} | sed 's/chr//' | bgzip > af-only-gnomad.${hg}.noChr.vcf.gz
+      tabix af-only-gnomad.${hg}.noChr.vcf.gz
+
+      bcftools view -R wgs.biall.bed af-only-gnomad.${hg}.noChr.vcf.gz | bcftools sort -T '.' > af-only-gnomad.wgsh.${hg}.noChr.vcf
+      perl ${workflow.projectDir}/bin/reheader_vcf_fai.pl af-only-gnomad.wgsh.${hg}.noChr.vcf ${fai} > af-only-gnomad.wgs.${hg}.noChr.vcf
+      bgzip af-only-gnomad.wgs.${hg}.noChr.vcf
+      tabix af-only-gnomad.wgs.${hg}.noChr.vcf.gz
+      """
   }
 }
 
