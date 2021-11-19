@@ -221,6 +221,7 @@ if(!file("$params.outDir/dbsnp").exists()){
     script:
     if( params.assemblylc == 'grch37' )
       """
+      gsutil -q cp gs://gatk-best-practices/somatic-b37/Mutect2-WGS-panel-b37.vcf ./Mutect2-WGS-panel-b37.vcf
       gsutil -q cp ${params.gsurl37}/1000G_phase1.snps.high_confidence.b37.vcf.gz ./KG_phase1.snps.high_confidence.b37.vcf.gz
       gsutil -q cp ${params.gsurl37}/dbsnp_138.b37.vcf.gz ./dbsnp_138.b37.vcf.gz
       gsutil -q cp ${params.gsurl37}/hapmap_3.3.b37.vcf.gz ./hapmap_3.3.b37.vcf.gz
@@ -235,6 +236,7 @@ if(!file("$params.outDir/dbsnp").exists()){
       """
     else
       """
+      gsutil -q cp gs://gatk-best-practices/somatic-hg38/1000g_pon.hg38.vcf.gz ./KG_pon.hg38.vcf.gz
       gsutil -q cp gs://genomics-public-data/cwl-examples/gdc-dnaseq-cwl/input/dbsnp_144.hg38.vcf.gz ./dbsnp_144.hg38.vcf.gz
       gsutil -q cp ${params.gsurl38}/1000G_phase1.snps.high_confidence.hg38.vcf.gz ./KG_phase1.snps.high_confidence.hg38.vcf.gz
       gsutil -q cp ${params.gsurl38}/Homo_sapiens_assembly38.dbsnp138.vcf ./Homo_sapiens_assembly38.dbsnp138.vcf
@@ -242,6 +244,7 @@ if(!file("$params.outDir/dbsnp").exists()){
       gsutil -q cp ${params.gsurl38}/1000G_omni2.5.hg38.vcf.gz ./KG_omni2.5.hg38.vcf.gz
       gsutil -q cp ${params.gsurl38}/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz ./Mills_KG_gold.indels.hg38.vcf.gz
 
+      gunzip -cd KG_pon.hg38.vcf.gz | sed 's/chr//g' > KG_pon.hg38.vcf
       gunzip -cd dbsnp_144.hg38.vcf.gz | sed 's/chr//g' > dbsnp_144.hg38.vcf
       gunzip -cd hapmap_3.3.hg38.vcf.gz | sed 's/chr//g' > hapmap_3.3.hg38.vcf
       gunzip -cd KG_omni2.5.hg38.vcf.gz | sed 's/chr//g' > KG_omni2.5.hg38.vcf
