@@ -462,6 +462,18 @@ process gtkrcl {
   def dbsnp = "${dbsnp_files}/*gz"
   """
   {
+  ##ensure seq dict from BAM has same regions as bed interval list
+  head -n1 ${intlist} > use.interval_list
+  samtools view -H ${bam} | grep "@SQ" | cut -f 2 > bam_sq.txt
+    cat bam_sq.txt | while read SEQ; do
+      export seq=\${SEQ};
+      perl -ane 'if(\$F[1] eq \$ENV{'seq'}){print \$_;}' ${intlist};
+    done >> use.interval_list
+  sed 's/SN://g' bam_sq.txt | while read CHR; do
+    export chr=\${CHR};
+    perl -ane 'if(\$F[0] eq \$ENV{'chr'}){print \$_;}' ${intlist};
+  done >> use.interval_list
+
   gatk BaseRecalibrator \
     -R ${fasta} \
     -I ${bam} \
@@ -469,7 +481,7 @@ process gtkrcl {
     --use-original-qualities \
     -O ${sampleID}.recal_data.table \
     --disable-sequence-dictionary-validation true \
-    -L ${intlist}
+    -L use.interval_list
 
   #ApplyBQSR
   OUTBAM=\$(echo ${bam} | sed 's/bam/bqsr.bam/')
@@ -480,7 +492,7 @@ process gtkrcl {
     --add-output-sam-program-record \
     --use-original-qualities \
     -O \$OUTBAM \
-    -L ${intlist}
+    -L use.interval.list
 
   samtools index \$OUTBAM \$OUTBAM".bai"
   } 2>&1 | tee >  ${sampleID}.GATK4_BQSR.log.txt
