@@ -17,7 +17,7 @@ def helpMessage() {
                               batch_somatic pipelines to select relevant exome
                               data (default: the first element when exome file
                               name is split on '.')
-    --outputDir        [str]     directory to save output (an <assebmbly> dir
+    --outputDir     [str]     directory to save output (an <assebmbly> dir
                               is created therein)
 
     one of:
@@ -288,8 +288,6 @@ if(!file("$params.outDir/gnomad").exists()){
     if( params.assembly == "GRCh37" )
       """
       gsutil -q cp gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf ./
-      bgzip af-only-gnomad.raw.sites.vcf
-      tabix af-only-gnomad.raw.sites.vcf.gz
       """
     else
       """
@@ -311,8 +309,14 @@ if(file("$params.outDir/gnomad").exists()){
     file('gnomad/af-only-gnomad.*') into ( exome_biall_gnomad, wgs_biall_gnomad )
 
     script:
-    """
-    """
+    if( params.assembly == "GRCh37" )
+      """
+      bgzip af-only-gnomad.raw.sites.vcf
+      tabix af-only-gnomad.raw.sites.vcf.gz
+      """
+    else
+      """
+      """
   }
 }
 
