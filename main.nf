@@ -495,7 +495,7 @@ process gtkrcl {
     --add-output-sam-program-record \
     --use-original-qualities \
     -O \$OUTBAM \
-    -L use.interval.list
+    -L use.interval_list
 
   samtools index \$OUTBAM \$OUTBAM".bai"
   } 2>&1 | tee >  ${sampleID}.GATK4_BQSR.log.txt
