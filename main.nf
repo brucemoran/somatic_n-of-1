@@ -907,6 +907,7 @@ process mltmet {
     O=${sampleID}".hs_metrics.txt" \
     TMP_DIR=./ \
     R=${fasta} \
+    VALIDATION_STRINGENCY=LENIENT \
     BAIT_INTERVALS=${intlist}  \
     TARGET_INTERVALS=${intlist}
   fi
@@ -914,24 +915,28 @@ process mltmet {
     I=${bam} \
     O=${sampleID}".AlignmentSummaryMetrics.txt" \
     TMP_DIR=./ \
+    VALIDATION_STRINGENCY=LENIENT \
     R=${fasta}
 
   picard ${taskmem} CollectMultipleMetrics \
     I=${bam} \
     O=${sampleID}".CollectMultipleMetrics.txt" \
     TMP_DIR=./ \
+    VALIDATION_STRINGENCY=LENIENT \
     R=${fasta}
 
   picard ${taskmem} CollectSequencingArtifactMetrics \
     I=${bam} \
     O=${sampleID}".artifact_metrics.txt" \
     TMP_DIR=./ \
+    VALIDATION_STRINGENCY=LENIENT \
     R=${fasta}
 
   picard ${taskmem} CollectInsertSizeMetrics \
     I=${bam} \
     O=${sampleID}".insert_size_metrics.txt" \
     H=${bam}".histogram.pdf" \
+    VALIDATION_STRINGENCY=LENIENT \
     TMP_DIR=./
 
   } 2>&1 | tee > ${sampleID}.picard.metrics.log
