@@ -1888,6 +1888,7 @@ if(params.germOnly) {
 process zipup {
 
   label 'low_mem'
+  publishDir "${params.outDir}/reports", mode: 'copy'
 
   input:
   file(send_all) from sendmail_all.collect()
