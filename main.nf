@@ -1766,17 +1766,17 @@ if(!params.germOnly){
         """
       }
 
-      sendmail_soma
-        .mix(sendmail_pathseq)
-        .set { sendmail_soma }
-      }
+    sendmail_soma
+      .mix(sendmail_pathseq)
+      .set { sendmail_soma }
     }
+  }
 
     fastp_multiqc.collect()
       .mix(fastqc_multiqc.collect())
       .mix(mrkdup_multiqc.collect())
       .set{ mrkdup_multiqc_col }
-  }
+
   sendmail_pcgr
     .mix(sendmail_vcfGRa)
     .mix(sendmail_facets)
@@ -1786,6 +1786,7 @@ if(!params.germOnly){
 mrkdup_multiqc
   .collect()
   .set { mrkdup_multiqc_col }
+
 /*
 ================================================================================
                           4.  MULTIQC AND CLOSEOUT
