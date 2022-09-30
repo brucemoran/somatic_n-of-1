@@ -1603,166 +1603,173 @@ if(!params.germOnly){
     """
   }
 
-  //3.41 PycloneVI / Pairtree
-  process pairtree_check {
+  if(params.phylogeny){
+    //3.41 PycloneVI / Pairtree
+    process pairtree_check {
 
-    input:
-    file(rdata) from completedvcfGRangesConsensus
+      input:
+      file(rdata) from completedvcfGRangesConsensus
 
-    output:
-    file("${params.runID}.HMML_impacts.master_consensus_all.RData") into pairtree_rdata
+      output:
+      file("${params.runID}.HMML_impacts.master_consensus_all.RData") into pairtree_rdata
 
-    when:
-    params.phylogeny == true
+      when:
+      params.phylogeny == true
 
-    script:
-    """
-    """
-  }
+      script:
+      """
+      """
+    }
 
-  process pairtree_setup {
+    process pairtree_setup {
 
-    label 'low_mem'
+      label 'low_mem'
 
-    publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+      publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
 
-    input:
-    file(rdata) from pairtree_rdata
-    file(filesn) from pairtee_facets
-    file(cna_master) from pairtree_facet
+      input:
+      file(rdata) from pairtree_rdata
+      file(filesn) from pairtee_facets
+      file(cna_master) from pairtree_facet
 
-    output:
-    tuple file("${params.runID}.pairtree.psm"), file("${params.runID}.in_params_fn.json") into pairtree_in
+      output:
+      tuple file("${params.runID}.pairtree.psm"), file("${params.runID}.in_params_fn.json") into pairtree_in
 
-    when:
-    params.phylogeny == true
+      when:
+      params.phylogeny == true
 
-    script:
-    def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
-    """
-    Rscript -e "somenone::make_pairtree_input(rdata_input = \\"${rdata}\\", cn_master = \\"${cna_master}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${which_genome}\\", tag = \\"${params.runID}\\")"
-    """
-  }
+      script:
+      def which_genome = params.assembly == "GRCh37" ? "hg19" : "hg38"
+      """
+      Rscript -e "somenone::make_pairtree_input(rdata_input = \\"${rdata}\\", cn_master = \\"${cna_master}\\", cn_pattern = \\"fit_cncf_jointsegs.tsv\\", pp_pattern = \\"fit_ploidy_purity.tsv\\", which_genome = \\"${which_genome}\\", tag = \\"${params.runID}\\")"
+      """
+    }
 
-  //3.42
-  // process pyclonevi {
-  //
-  //   label 'low_mem'
-  //
-  //   publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
-  //
-  //   input:
-  //   tuple file(pyclone_input), file(pairtree_psm) from pyclone_in
-  //
-  //   output:
-  //   tuple file("${params.runID}.pyclone.results.tsv"), file("${pairtree.psm}") into pyclone_res
-  //
-  //   script:
-  //   """
-  //   pyclone-vi fit -i ${pyclone_input} \
-  //                  -o ${params.runID}.pyclonevi.output.tsv
-  //   pyclone-vi write-results-file -i ${params.runID}.pyclonevi.output.tsv \
-  //                                 -o ${params.runID}.pyclone.results.tsv
-  //   """
-  // }
+    //3.42
+    // process pyclonevi {
+    //
+    //   label 'low_mem'
+    //
+    //   publishDir "${params.outDir}/combined/pylogeny", mode: "copy"
+    //
+    //   input:
+    //   tuple file(pyclone_input), file(pairtree_psm) from pyclone_in
+    //
+    //   output:
+    //   tuple file("${params.runID}.pyclone.results.tsv"), file("${pairtree.psm}") into pyclone_res
+    //
+    //   script:
+    //   """
+    //   pyclone-vi fit -i ${pyclone_input} \
+    //                  -o ${params.runID}.pyclonevi.output.tsv
+    //   pyclone-vi write-results-file -i ${params.runID}.pyclonevi.output.tsv \
+    //                                 -o ${params.runID}.pyclone.results.tsv
+    //   """
+    // }
 
-  //3.42: pairtree run
-  process pairtree_run {
+    //3.42: pairtree run
+    process pairtree_run {
 
-    label 'low_mem'
+      label 'low_mem'
 
-    publishDir "${params.outDir}/combined/phylogeny/pairtree/${model}_${concn}", mode: "copy"
+      publishDir "${params.outDir}/combined/phylogeny/pairtree/${model}_${concn}", mode: "copy"
 
-    input:
-    tuple file(pairtree_psm), file(pairtree_json) from pairtree_in
-    each concn from Channel.from("-2","-1","0.5","1.5")
-    each model from Channel.from("pairwise","linfreq")
+      input:
+      tuple file(pairtree_psm), file(pairtree_json) from pairtree_in
+      each concn from Channel.from("-2","-1","0.5","1.5")
+      each model from Channel.from("pairwise","linfreq")
 
-    output:
-    file('*') into pairtree_res
-    file('*.html') into sendmail_pairtree
+      output:
+      file('*') into pairtree_res
+      file('*.html') into sendmail_pairtree
 
-    when:
-    params.phylogeny == true
+      when:
+      params.phylogeny == true
 
-    script:
-    def concnt = "${concn}" < 0 ? "${concn}".replaceAll("-", "minus") : "${concn}"
-    """
-    cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree_${model}_${concnt}.ssm
+      script:
+      def concnt = "${concn}" < 0 ? "${concn}".replaceAll("-", "minus") : "${concn}"
+      """
+      cut -f 1,2,3,4,5 ${pairtree_psm} > ${params.runID}.pairtree_${model}_${concnt}.ssm
 
-    clustervars --model ${model} \
-                --concentration ${concn} \
-                ${params.runID}.pairtree_${model}_${concnt}.ssm \
-                ${pairtree_json} \
-                ${params.runID}.out_params_${model}_${concnt}.json
+      clustervars --model ${model} \
+                  --concentration ${concn} \
+                  ${params.runID}.pairtree_${model}_${concnt}.ssm \
+                  ${pairtree_json} \
+                  ${params.runID}.out_params_${model}_${concnt}.json
 
-    touch ${params.runID}.rmvaf_params_${model}_${concnt}.json
-    python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py \
-           ${params.runID}.pairtree_${model}_${concnt}.ssm \
-           ${params.runID}.out_params_${model}_${concnt}.json \
-           ${params.runID}.rmvaf_params_${model}_${concnt}.json
-
-    WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concnt}.json | perl -ane 'print \$F[0];')
-    if [[ \$WCLTEST < 1 ]]; then
-      OUTPARAMS=${params.runID}.out_params_${model}_${concnt}.json
-    else
-      OUTPARAMS=${params.runID}.rmvaf_params_${model}_${concnt}.json
-    fi
-
-    pairtree --params \$OUTPARAMS \
+      touch ${params.runID}.rmvaf_params_${model}_${concnt}.json
+      python /opt/miniconda/envs/pairtree/share/pairtree/util/remove_high_vaf.py \
              ${params.runID}.pairtree_${model}_${concnt}.ssm \
-             ${params.runID}.res_${model}_${concnt}.npz
+             ${params.runID}.out_params_${model}_${concnt}.json \
+             ${params.runID}.rmvaf_params_${model}_${concnt}.json
 
-    plottree ${params.runID}.pairtree_${model}_${concnt}.ssm \
-             \$OUTPARAMS \
-             ${params.runID}.res_${model}_${concnt}.npz \
-             ${params.runID}.pairtree_${model}_${concnt}.results.html
-    """
+      WCLTEST=\$(wc -l ${params.runID}.rmvaf_params_${model}_${concnt}.json | perl -ane 'print \$F[0];')
+      if [[ \$WCLTEST < 1 ]]; then
+        OUTPARAMS=${params.runID}.out_params_${model}_${concnt}.json
+      else
+        OUTPARAMS=${params.runID}.rmvaf_params_${model}_${concnt}.json
+      fi
+
+      pairtree --params \$OUTPARAMS \
+               ${params.runID}.pairtree_${model}_${concnt}.ssm \
+               ${params.runID}.res_${model}_${concnt}.npz
+
+      plottree ${params.runID}.pairtree_${model}_${concnt}.ssm \
+               \$OUTPARAMS \
+               ${params.runID}.res_${model}_${concnt}.npz \
+               ${params.runID}.pairtree_${model}_${concnt}.results.html
+      """
+    }
+
+    sendmail_soma
+      .mix(sendmail_pairtree)
+      .set { sendmail_soma }
   }
 
   //3.5: Pathseq
   if(!params.bamCsv){
-    process Pathseq {
-
-      label 'high_mem'
-
-      publishDir "${params.outDir}/samples/${sampleID}/pathseq", mode: "copy"
-
-      input:
-      tuple val(type), val(sampleID), val(meta), file(ubam), file(ubai) from pathseqing
-      file(pathseq_refs) from reference.pathseq
-
-      output:
-      file('*') into  pathseq_res
-      file('*.txt') into sendmail_pathseq
-      when:
-      params.microbiome == true
-
-      script:
-      def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
-
-      """
-       gatk ${taskmem} PathSeqPipelineSpark  \
-         --input ${ubam} \
-         --kmer-file ${pathseq_refs}/pathseq_host.bfi \
-         --filter-bwa-image ${pathseq_refs}/pathseq_host.fa.img \
-         --microbe-bwa-image ${pathseq_refs}/pathseq_microbe.fa.img \
-         --microbe-dict ${pathseq_refs}/pathseq_microbe.dict \
-         --taxonomy-file ${pathseq_refs}/pathseq_microbe_taxonomy.db \
-         --min-clipped-read-length 60 \
-         --min-score-identity 0.90 \
-         --identity-margin 0.02 \
-         --scores-output ${sampleID}.pathseq.scores.txt \
-         --output ${sampleID}.pathseq.output_reads.bam \
-         --filter-metrics ${sampleID}.pathseq.filter_metrics.txt \
-         --score-metrics ${sampleID}.pathseq.score_metrics.txt
-      """
-    }
-
     if(params.microbiome){
+      process Pathseq {
+
+        label 'high_mem'
+
+        publishDir "${params.outDir}/samples/${sampleID}/pathseq", mode: "copy"
+
+        input:
+        tuple val(type), val(sampleID), val(meta), file(ubam), file(ubai) from pathseqing
+        file(pathseq_refs) from reference.pathseq
+
+        output:
+        file('*') into  pathseq_res
+        file('*.txt') into sendmail_pathseq
+        when:
+        params.microbiome == true
+
+        script:
+        def taskmem = task.memory == null ? "" : "--java-options \"-Xmx" + javaTaskmem("${task.memory}") + "\""
+
+        """
+         gatk ${taskmem} PathSeqPipelineSpark  \
+           --input ${ubam} \
+           --kmer-file ${pathseq_refs}/pathseq_host.bfi \
+           --filter-bwa-image ${pathseq_refs}/pathseq_host.fa.img \
+           --microbe-bwa-image ${pathseq_refs}/pathseq_microbe.fa.img \
+           --microbe-dict ${pathseq_refs}/pathseq_microbe.dict \
+           --taxonomy-file ${pathseq_refs}/pathseq_microbe_taxonomy.db \
+           --min-clipped-read-length 60 \
+           --min-score-identity 0.90 \
+           --identity-margin 0.02 \
+           --scores-output ${sampleID}.pathseq.scores.txt \
+           --output ${sampleID}.pathseq.output_reads.bam \
+           --filter-metrics ${sampleID}.pathseq.filter_metrics.txt \
+           --score-metrics ${sampleID}.pathseq.score_metrics.txt
+        """
+      }
+
       sendmail_soma
         .mix(sendmail_pathseq)
         .set { sendmail_soma }
+      }
     }
 
     fastp_multiqc.collect()
@@ -1774,14 +1781,6 @@ if(!params.germOnly){
     .mix(sendmail_vcfGRa)
     .mix(sendmail_facets)
     .set { sendmail_soma }
-
-  if(params.phylogeny){
-    sendmail_soma
-      .mix(sendmail_pairtree)
-      .set { sendmail_soma }
-  }
-
-
 }
 
 mrkdup_multiqc
