@@ -36,6 +36,8 @@ def helpMessage() {
     --germline      [bool]      Run HaplotypeCaller on germline sample and
                                 annotate with CPSR (default: true)
 
+    --germCNV      [bool]       Run CNVkit germine CNV caller (default: false)
+
     --scatGath      [int]       Number of pieces to divide intervalList into for
                                 scattering to variant calling processes
                                 (default: 20 for exome, 100 for WGS)
@@ -664,8 +666,8 @@ process germCnvkit {
   tuple file("${sampleID}.call.cns"), file("${sampleID}.scatter.pdf"), file("${sampleID}.diagram.pdf") into sendmail_cnvkit
 
   when:
-  type == "germline" & params.germline != false \
-   | type == "germsoma" & params.germline != false
+  type == "germline" & params.germline != false & params.germCNV != false \
+   | type == "germsoma" & params.germline != false & params.germCNV != false
 
   script:
   seqlev = params.seqlevel == "wgs" ? "wgs" : "hybrid"
