@@ -1,10 +1,9 @@
 name: somatic_n-of-1
 channels:
-  - pcgr
+  - bioconda
   - conda-forge
   - r
-  - bioconda
-  - defaults
+  - pcgr
 dependencies:
   - ascat
   - bam-readcount
