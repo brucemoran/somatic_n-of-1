@@ -50,7 +50,7 @@ dependencies:
   - perl
   - picard
   - pisces
-  - r-base
+  - r-base=3.6.2
   - r-bedr
   - r-biocmanager
   - r-circlize
