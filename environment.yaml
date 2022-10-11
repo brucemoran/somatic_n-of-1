@@ -1,8 +1,8 @@
 name: somatic_n-of-1
 channels:
-  - bioconda
   - conda-forge
-  - r
+  - bioconda
+  - defaults
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=1_gnu
