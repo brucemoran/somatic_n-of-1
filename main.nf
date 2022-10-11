@@ -1772,20 +1772,22 @@ if(!params.germOnly){
       }
     }
 
-    fastp_multiqc.collect()
-      .mix(fastqc_multiqc.collect())
-      .mix(mrkdup_multiqc.collect())
-      .set{ mrkdup_multiqc_col }
-  }
+  fastp_multiqc.collect()
+    .mix(fastqc_multiqc.collect())
+    .mix(mrkdup_multiqc.collect())
+    .set{ mrkdup_multiqc_col }
+
   sendmail_pcgr
     .mix(sendmail_vcfGRa)
     .mix(sendmail_facets)
-    .set { sendmail_soma }
+      .set { sendmail_soma }
+} else {
+
+  mrkdup_multiqc
+    .collect()
+    .set { mrkdup_multiqc_col }
 }
 
-mrkdup_multiqc
-  .collect()
-  .set { mrkdup_multiqc_col }
 /*
 ================================================================================
                           4.  MULTIQC AND CLOSEOUT
