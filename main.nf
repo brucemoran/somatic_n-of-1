@@ -1027,12 +1027,12 @@ if(!params.germOnly){
     script:
     if( !params.cosmic )
       """
-      { Rscript -e "somenone::facets_cna_consensus(\\"fit_cncf_jointsegs.tsv\\", \\"${dict}\\", \\"${params.runID}\\")"
+      { Rscript -e "somenone::facets_cna_consensus( cncf_match = \\"fit_cncf_jointsegs.tsv\\", pp_match = \\"fit_ploidy_purity.tsv\\", dict_file = \\"${dict}\\", tag = \\"${params.runID}\\")"
       } 2>&1 | tee > facets_cons.log.txt
       """
     else
       """
-      { Rscript -e "somenone::facets_cna_consensus(\\"fit_cncf_jointsegs.tsv\\", \\"${dict}\\", \\"${params.runID}\\", \\"${cosmicbed}\\")"
+      { Rscript -e "somenone::facets_cna_consensus( cncf_match = \\"fit_cncf_jointsegs.tsv\\", pp_match = \\"fit_ploidy_purity.tsv\\", dict_file = \\"${dict}\\", tag = \\"${params.runID}\\", cgc_bed = \\"${cosmicbed}\\")"
       } 2>&1 | tee > facets_cons.log.txt
       """
   }
