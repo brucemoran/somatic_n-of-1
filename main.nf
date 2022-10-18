@@ -1778,7 +1778,6 @@ if(!params.germOnly){
 
   sendmail_pcgr
     .mix(sendmail_vcfGRa)
-    .mix(sendmail_facets)
       .set { sendmail_soma }
 } else {
 
