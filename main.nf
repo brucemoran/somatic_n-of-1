@@ -1022,7 +1022,6 @@ if(!params.germOnly){
     file('*') into complete_facets
     file(filesn) into pairtee_facets
     file("${params.runID}.ENS.facets.CNA.master.tsv") into pairtree_facet
-    file('*.pdf') into sendmail_facets
 
     script:
     if( !params.cosmic )
