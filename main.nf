@@ -1498,7 +1498,6 @@ if(!params.germOnly){
     output:
     file('*impacts.pcgr.tsv.vcf') into vcfs_pcgr
     file('*') into completedvcfGRangesConsensus
-    file('*.pdf') into sendmail_vcfGRa
 
     script:
     def inc_ord = params.incOrder ? params.incOrder : "noord"
@@ -1777,8 +1776,7 @@ if(!params.germOnly){
     .set{ mrkdup_multiqc_col }
 
   sendmail_pcgr
-    .mix(sendmail_vcfGRa)
-      .set { sendmail_soma }
+    .set { sendmail_soma }
 } else {
 
   mrkdup_multiqc
