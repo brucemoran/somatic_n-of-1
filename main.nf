@@ -1798,7 +1798,7 @@ process MultiQC {
   input:
   file(gtkrcls) from gtkrcl_multiqc.collect()
   file(multimetrics) from multimetrics_multiqc.collect()
-  file(mrkdups) from mrkdup_multiqc_col
+  file(mrkdups) from mrkdup_multiqc_col.collect()
   file(mosdepth) from mosdepth_multiqc.collect()
 
   output:
