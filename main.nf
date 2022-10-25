@@ -527,7 +527,7 @@ process scat_gath {
   }
   """
   ##strip out all but chromosomes in the interval_list (no decoys etc)
-  CHRS=\$(grep -v "@" ${intlist} | cut -f 1 | uniq)
+  CHRS=\$(grep -v "@" ${intlist} | cut -f 1 | uniq | grep -v decoy | grep -v KI)
   for CHR in \$CHRS; do
     grep "SN:\$CHR\\s" ${intlist} >> used.interval_list
   done
@@ -1564,7 +1564,7 @@ if(!params.germOnly){
 
     script:
     grch_vers = "${grchver}".split("\\/")[-1]
-    config = params.seqlevel == "exome" ? "${exomebase}/${params.exomeTag}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_default.toml"
+    config = params.seqlevel == "exome" ? "${pcgrbase}/pcgr/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_default.toml"
     assay = params.seqlevel == "exome" ? "WES" : "WGS"
     """
     {
