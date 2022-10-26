@@ -1564,7 +1564,7 @@ if(!params.germOnly){
 
     script:
     grch_vers = "${grchver}".split("\\/")[-1]
-    config = params.seqlevel == "exome" ? "${pcgrbase}/pcgr/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_default.toml"
+    config = params.seqlevel == "exome" ? "${pcgrbase}/data/${grch_vers}/pcgr_configuration_${params.exomeTag}.toml" : "${pcgrbase}/data/${grch_vers}/pcgr_configuration_default.toml"
     assay = params.seqlevel == "exome" ? "WES" : "WGS"
     """
     {
